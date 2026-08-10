@@ -1,0 +1,54 @@
+# USB access for harbour-pipecam.
+#
+# WHY THIS FILE IS NEEDED
+# The endoscope camera is a vendor-class device (interface class 0xff, subclass
+# 0xf0), so the kernel's uvcvideo driver never binds it and no /dev/videoN is
+# created. The app drives the USB endpoints directly with libusb, which means it
+# needs to open the raw device node under /dev/bus/usb/. Those nodes default to
+# root:usb 0660 and the Sailfish app user is not in the `usb` group, so without
+# this rule the camera is visible on the bus but cannot be opened.
+#
+# SCOPE
+# Matched on the two known VID:PIDs of this camera family and on the device node
+# only (DEVTYPE=="usb_device"), not on its interfaces. Nothing else on the USB
+# bus is affected.
+#
+# WHY MODE=0666 AND NOT TAG+="uaccess"
+# uaccess hands the node to whoever is logged in at the seat, but logind then
+# re-applies its own ACL and resets the node whenever the session state changes
+# — which on a phone happens every time the screen locks. A plain mode makes the
+# camera work without a re-login and without adding the app user to a group.
+# The device is a camera with no stored data and no writable firmware, so a
+# permissive node costs nothing.
+#
+# WHY THE FILENAME STARTS WITH 999- AND NOT 99-
+# This is the whole reason the rule works, so do not "tidy" the name.
+#
+# Sailfish on Android-based hardware ships /lib/udev/rules.d/999-android-system.rules,
+# which contains a catch-all at line 107:
+#
+#     SUBSYSTEM=="usb", KERNEL=="*", MODE="0660", GROUP="usb", OWNER="root"
+#
+# udev applies rule files in lexical filename order and the LAST assignment
+# wins. "99-harbour-pipecam-usb.rules" sorts BEFORE "999-android-system.rules"
+# ('-' is 0x2D, '9' is 0x39), so a 99- prefixed file is silently overwritten by
+# that catch-all and the node stays root:usb 0660 — udevadm test even shows our
+# MODE 0666 being applied and then replaced.
+#
+# "999-harbour-pipecam-usb.rules" sorts after "999-android-system.rules"
+# ('a' < 'h') and therefore wins. The device's own 999-veroval.rules solves the
+# same problem the same way.
+#
+# Diagnose with:
+#     udevadm test /sys/bus/usb/devices/<n-n.n> 2>&1 | grep -E 'MODE|GROUP'
+# The last MODE line is the one that takes effect.
+#
+# Same overall approach as /etc/udev/rules.d/99-flipper.rules (harbour-sflipper)
+# and 99-harbour-idrone-catsniffer.rules (harbour-idrone) — those match on
+# SUBSYSTEM=="tty", which the Android catch-all does not touch, which is why a
+# 99- prefix is enough for them and not for us.
+
+# "Geek szitman / supercamera" — the common USeePlus endoscope
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2ce3", ATTR{idProduct}=="3828", MODE="0666"
+# Same hardware, alternate ID pair used by some batches
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0329", ATTR{idProduct}=="2022", MODE="0666"

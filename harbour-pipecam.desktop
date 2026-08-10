@@ -1,0 +1,22 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=harbour-pipecam
+Name=PipeCam
+Comment=USB pipe inspection camera
+Comment[de]=USB-Rohrkamera
+Exec=harbour-pipecam
+
+# NO [X-Sailjail] SECTION — this is deliberate.
+#
+# The app opens the camera's raw USB node under /dev/bus/usb/ via libusb (the
+# device is vendor-class, so there is no /dev/videoN to request a Camera
+# permission for). Sailjail's sandbox gives an application a private /dev with
+# only a whitelisted set of nodes, and there is no stock permission that grants
+# raw USB access — so a sandboxed build simply cannot reach the camera.
+#
+# Declaring no [X-Sailjail] section means the app runs unsandboxed, which is the
+# same approach harbour-sflipper takes for the Flipper Zero's serial node. The
+# trade-off is accepted knowingly: the app has no network code at all, reads
+# nothing but the camera, and writes only into ~/Pictures/PipeCam and
+# ~/Videos/PipeCam.
