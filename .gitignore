@@ -33,3 +33,7 @@ tools/
 
 # Local data / captures
 *.log
+
+# --- project-specific build output (appended by scripts/make-publish.sh) ---
+/harbour-pipecam
+/translations/harbour-pipecam.ts
