@@ -1,7 +1,7 @@
 # Neutral packaging metadata — no personal identifiers (see CLAUDE.md anonymity rules).
 Name:       harbour-pipecam
 Summary:    Viewer and recorder for USB pipe inspection cameras
-Version:    0.1.0
+Version:    0.1.1
 Release:    1
 # ANONYMITY: neutral build host so built RPMs carry no real hostname/domain.
 # Without this, the RPM BUILDHOST tag leaks the build machine's name and LAN
@@ -75,5 +75,10 @@ fi
 %config %{_sysconfdir}/udev/rules.d/999-harbour-pipecam-usb.rules
 
 %changelog
+* Sun Aug 30 2026 harbour-pipecam contributors 0.1.1-1
+- Jolla J2 (and any phone with a camera cutout): the viewfinder now fills the
+  whole screen instead of leaving a strip of desktop beside the notch, and the
+  settings/brightness column steps aside so no control sits under the cutout.
+
 * Mon Aug 10 2026 harbour-pipecam contributors 0.1.0-1
 - First release: live view, snapshots, MJPEG-to-MP4 recording, gallery.

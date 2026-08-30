@@ -758,7 +758,7 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>ViewfinderPage</name>
     <message>
-        <location filename="../qml/pages/ViewfinderPage.qml" line="241"/>
+        <location filename="../qml/pages/ViewfinderPage.qml" line="273"/>
         <source>%1 fps</source>
         <translation>%1 fps</translation>
     </message>
