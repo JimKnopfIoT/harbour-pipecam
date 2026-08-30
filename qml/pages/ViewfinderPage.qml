@@ -39,6 +39,38 @@ Page {
     allowedOrientations: Orientation.Landscape
 
     /* ------------------------------------------------------------------ */
+    /* CAMERA CUTOUT (Jolla J2)                                            */
+    /* ------------------------------------------------------------------ */
+    /* Silica's default for a landscape page is CutoutMode.AvoidLandscapeCutout:
+     * the whole page is simply made narrower by the height of the notch, so a
+     * strip of the desktop background is left standing along the edge the
+     * camera sits in. Correct for a list, wrong for a viewfinder — this app is
+     * one picture filling the screen, and handing back a strip of it to show
+     * wallpaper is the one thing it must not do.
+     *
+     * So the page takes the whole screen, and the controls keep clear of the
+     * notch themselves. The picture underneath does not, on purpose: it is a
+     * picture, and at the default Fit zoom it is pillarboxed well inside the
+     * cutout anyway.
+     *
+     * WHICH EDGE THE NOTCH IS ON
+     * `Screen.topCutout` is given in portrait coordinates — on the J2 a 66 px
+     * high rectangle centred on the top edge. In Orientation.Landscape Silica
+     * rotates the page by +90°, which puts the portrait top edge on the page's
+     * LEFT — where this app's settings column already is, with the brightness
+     * bar running straight through the notch band. Hence a left inset only:
+     * Orientation.Landscape is the sole orientation this page can ever be in
+     * (see harbour-pipecam.qml — Landscape, not LandscapeMask), so the mirrored
+     * LandscapeInverted case cannot occur and is not carried here. On a phone
+     * without a cutout the rectangle is empty and this is zero, so nothing
+     * changes on any other device.
+     */
+    cutoutMode: CutoutMode.FullScreen
+
+    readonly property real cutoutInset:
+        orientation === Orientation.Landscape ? Screen.topCutout.height : 0
+
+    /* ------------------------------------------------------------------ */
     /* Live image                                                          */
     /* ------------------------------------------------------------------ */
     Rectangle {
@@ -321,8 +353,13 @@ Page {
         /* Same width as the right-hand column. It has to hold a roll dial big
          * enough to grab and drag around, which the previous narrow strip was
          * not — and a matching width also puts the picture back in the optical
-         * centre of the screen. */
-        width: Theme.itemSizeLarge + 2 * Theme.paddingLarge
+         * centre of the screen.
+         *
+         * Plus the camera cutout (see the note at the top of the page): the bar
+         * still reaches the screen edge so its dark fade covers the notch, but
+         * every control inside it is pushed clear of the cutout by the same
+         * amount. */
+        width: Theme.itemSizeLarge + 2 * Theme.paddingLarge + page.cutoutInset
 
         /* Mirror of the right column's fade: vertical gradient in a rectangle
          * with width and height swapped, rotated +90° so the dark end lands on
@@ -346,7 +383,7 @@ Page {
             anchors {
                 left: parent.left
                 top: parent.top
-                leftMargin: Theme.paddingMedium
+                leftMargin: Theme.paddingMedium + page.cutoutInset
                 topMargin: Theme.paddingMedium
             }
             icon.source: "image://theme/icon-m-developer-mode"
@@ -363,8 +400,9 @@ Page {
                 bottom: rollIndicator.top
                 bottomMargin: Theme.paddingLarge
                 horizontalCenter: parent.horizontalCenter
+                horizontalCenterOffset: page.cutoutInset / 2
             }
-            width: parent.width
+            width: parent.width - page.cutoutInset
             maxGain: app.camera.maxGain
             gain: app.camera.gain
             onGainChanged: {
@@ -377,6 +415,7 @@ Page {
             id: rollIndicator
             anchors {
                 horizontalCenter: parent.horizontalCenter
+                horizontalCenterOffset: page.cutoutInset / 2
                 bottom: parent.bottom
                 bottomMargin: Theme.paddingLarge
             }
