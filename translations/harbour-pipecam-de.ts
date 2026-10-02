@@ -4,22 +4,22 @@
 <context>
     <name>AboutPage</name>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="27"/>
+        <location filename="../qml/pages/AboutPage.qml" line="34"/>
         <source>About PipeCam</source>
         <translation>Über PipeCam</translation>
     </message>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="41"/>
+        <location filename="../qml/pages/AboutPage.qml" line="48"/>
         <source>Live view, snapshots and recording for USB-C pipe inspection cameras.</source>
         <translation>Livebild, Fotos und Aufnahmen für USB-C-Rohrkameras.</translation>
     </message>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="47"/>
+        <location filename="../qml/pages/AboutPage.qml" line="54"/>
         <source>Supported hardware</source>
         <translation>Unterstützte Hardware</translation>
     </message>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="55"/>
+        <location filename="../qml/pages/AboutPage.qml" line="62"/>
         <source>Endoscope cameras that speak the “com.useeplus” protocol, sold as USeePlus, Geek szitman or supercamera:
 
     USB 2ce3:3828
@@ -34,34 +34,79 @@ These cameras are not UVC devices, so no kernel driver binds them and they never
 Diese Kameras sind keine UVC-Geräte. Deshalb bindet kein Kerneltreiber sie, und sie erscheinen nie als /dev/video-Knoten. PipeCam spricht ihre USB-Endpunkte direkt an.</translation>
     </message>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="66"/>
+        <location filename="../qml/pages/AboutPage.qml" line="73"/>
         <source>How captures are stored</source>
         <translation>Wie Aufnahmen gespeichert werden</translation>
     </message>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="74"/>
+        <location filename="../qml/pages/AboutPage.qml" line="81"/>
         <source>The camera streams MJPEG, so a snapshot is written as the camera&apos;s own untouched JPEG and a recording is muxed straight into MP4 — nothing is re-encoded. Switching on the timestamp or the brightness gain does force a re-encode, because both change the picture. No location or device information is added to any file.</source>
         <translation>Die Kamera liefert MJPEG. Ein Foto wird deshalb als das unveränderte JPEG der Kamera gespeichert, eine Aufnahme direkt in eine MP4-Datei gemuxt — ohne Neukodierung. Zeitstempel oder Helligkeitsanhebung erzwingen allerdings eine Neukodierung, weil beide das Bild verändern. Keiner Datei werden Standort- oder Geräteinformationen hinzugefügt.</translation>
     </message>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="83"/>
+        <location filename="../qml/pages/AboutPage.qml" line="90"/>
         <source>Privacy</source>
         <translation>Privatsphäre</translation>
     </message>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="91"/>
+        <location filename="../qml/pages/AboutPage.qml" line="98"/>
         <source>Everything runs on the device. PipeCam contains no network code at all: there is no telemetry, no cloud component and nothing to opt out of.</source>
         <translation>Alles läuft auf dem Gerät. PipeCam enthält überhaupt keinen Netzwerkcode: keine Telemetrie, keine Cloud, nichts zum Abschalten.</translation>
     </message>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="96"/>
+        <location filename="../qml/pages/AboutPage.qml" line="103"/>
         <source>Licence</source>
         <translation>Lizenz</translation>
     </message>
     <message>
-        <location filename="../qml/pages/AboutPage.qml" line="104"/>
+        <location filename="../qml/pages/AboutPage.qml" line="111"/>
         <source>GNU General Public License v3.0 or later. Provided as is, with no warranty.</source>
         <translation>GNU General Public License v3.0 oder später. Ohne jede Gewährleistung.</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AboutPage.qml" line="115"/>
+        <source>Source code and bug reports</source>
+        <translation>Quellcode und Fehlermeldungen</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AboutPage.qml" line="118"/>
+        <source>Source code</source>
+        <translation>Quellcode</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AboutPage.qml" line="122"/>
+        <source>Report a problem</source>
+        <translation>Problem melden</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AboutPage.qml" line="126"/>
+        <source>Diagnostics</source>
+        <translation>Diagnose</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AboutPage.qml" line="134"/>
+        <source>If the camera does not work: switch on the verbose log, unplug and replug the camera, then create a diagnostic report and attach it to a bug report.</source>
+        <translation>Wenn die Kamera nicht funktioniert: ausführliches Protokoll einschalten, Kamera aus- und wieder einstecken, dann einen Diagnosebericht erstellen und der Fehlermeldung beifügen.</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AboutPage.qml" line="140"/>
+        <source>Verbose log</source>
+        <translation>Ausführliches Protokoll</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AboutPage.qml" line="141"/>
+        <source>Records every step of opening the camera, including libusb&apos;s own messages. Also written to %1, so it survives a crash. Leave it off when everything works.</source>
+        <translation>Zeichnet jeden Schritt beim Öffnen der Kamera auf, einschließlich der Meldungen von libusb. Wird zusätzlich nach %1 geschrieben und übersteht so auch einen Absturz. Ausgeschaltet lassen, wenn alles funktioniert.</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AboutPage.qml" line="152"/>
+        <source>Create diagnostic report</source>
+        <translation>Diagnosebericht erstellen</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AboutPage.qml" line="163"/>
+        <source>Version %1</source>
+        <translation>Version %1</translation>
     </message>
 </context>
 <context>
@@ -177,6 +222,94 @@ Diese Kameras sind keine UVC-Geräte. Deshalb bindet kein Kerneltreiber sie, und
     </message>
 </context>
 <context>
+    <name>DiagReportPage</name>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="106"/>
+        <source>Diagnostic report</source>
+        <translation>Diagnosebericht</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="107"/>
+        <source>Anonymised, ready to post</source>
+        <translation>Anonymisiert, fertig zum Posten</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="116"/>
+        <source>Collects app and system versions, the camera&apos;s complete USB description and the app&apos;s log. Serial numbers, host name, user name, MAC and IP addresses are removed on the phone, before you see the text.</source>
+        <translation>Sammelt App- und Systemversionen, die vollständige USB-Beschreibung der Kamera und das Protokoll der App. Seriennummern, Hostname, Benutzername, MAC- und IP-Adressen werden schon auf dem Telefon entfernt, bevor du den Text siehst.</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="127"/>
+        <source>Test taking over the camera</source>
+        <translation>Übernahme der Kamera testen</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="128"/>
+        <source>Stops the live picture for a moment and tries to claim the camera&apos;s USB interfaces, to see whether something else is holding them.</source>
+        <translation>Hält das Livebild kurz an und versucht, die USB-Interfaces der Kamera zu übernehmen — so zeigt sich, ob etwas anderes sie belegt.</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="134"/>
+        <source>Include root data</source>
+        <translation>Root-Daten einbeziehen</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="135"/>
+        <source>Starts a read-only helper as root for the kernel&apos;s view: which process holds the camera, kernel log and journal lines about USB. Stops again when you leave this page.</source>
+        <translation>Startet einen nur lesenden Helfer als root für die Sicht des Kernels: welcher Prozess die Kamera hält, Kernel-Log- und Journal-Zeilen zu USB. Endet wieder, sobald du diese Seite verlässt.</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="158"/>
+        <source>Helper connected.</source>
+        <translation>Helfer verbunden.</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="159"/>
+        <source>Helper could not be started: %1</source>
+        <translation>Helfer konnte nicht gestartet werden: %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="160"/>
+        <source>Starting helper…</source>
+        <translation>Helfer wird gestartet …</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="165"/>
+        <source>Create report</source>
+        <translation>Bericht erstellen</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="165"/>
+        <source>Create again</source>
+        <translation>Neu erstellen</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="189"/>
+        <source>Copy</source>
+        <translation>Kopieren</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="193"/>
+        <source>Save</source>
+        <translation>Speichern</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="197"/>
+        <source>Open issues</source>
+        <translation>Issues öffnen</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="211"/>
+        <source>Saved to %1</source>
+        <translation>Gespeichert unter %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/DiagReportPage.qml" line="221"/>
+        <source>Please read it through once before posting. Paste it into a GitHub issue as it is — it is already formatted for that.</source>
+        <translation>Bitte vor dem Posten einmal durchlesen. Unverändert in ein GitHub-Issue einfügen — der Bericht ist dafür bereits formatiert.</translation>
+    </message>
+</context>
+<context>
     <name>GalleryPage</name>
     <message>
         <location filename="../qml/pages/GalleryPage.qml" line="33"/>
@@ -259,37 +392,47 @@ Diese Kameras sind keine UVC-Geräte. Deshalb bindet kein Kerneltreiber sie, und
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="135"/>
+        <location filename="../src/camera/uppcamera.cpp" line="167"/>
         <source>Camera found but not accessible. The USB permission rule is missing — reinstall the app and replug the camera.</source>
         <translation>Kamera gefunden, aber nicht zugreifbar. Die USB-Berechtigungsregel fehlt — App neu installieren und Kamera aus- und wieder einstecken.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="139"/>
+        <location filename="../src/camera/uppcamera.cpp" line="171"/>
         <source>No camera detected. Check the USB-C connection.</source>
         <translation>Keine Kamera erkannt. USB-C-Verbindung prüfen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="236"/>
+        <location filename="../src/camera/uppcamera.cpp" line="281"/>
         <source>Not allowed to open the camera (USB permissions).</source>
         <translation>Keine Berechtigung, die Kamera zu öffnen (USB-Rechte).</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="237"/>
-        <source>Camera is busy — unplug and replug it.</source>
-        <translation>Kamera ist belegt — aus- und wieder einstecken.</translation>
+        <location filename="../src/camera/uppcamera.cpp" line="284"/>
+        <source>Camera is in use by another program or driver (interface %1). Close other camera apps, or unplug and replug it.</source>
+        <translation>Kamera wird von einem anderen Programm oder Treiber benutzt (Interface %1). Andere Kamera-Apps schließen oder Kamera aus- und wieder einstecken.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="255"/>
+        <location filename="../src/camera/uppcamera.cpp" line="289"/>
+        <source>This camera has no interface %1 — an unknown variant. Please send a diagnostic report (Settings → About).</source>
+        <translation>Diese Kamera hat kein Interface %1 — eine unbekannte Variante. Bitte einen Diagnosebericht schicken (Einstellungen → Über).</translation>
+    </message>
+    <message>
+        <location filename="../src/camera/uppcamera.cpp" line="294"/>
+        <source>Could not take over the camera&apos;s USB interface %1.</source>
+        <translation>Das USB-Interface %1 der Kamera konnte nicht übernommen werden.</translation>
+    </message>
+    <message>
+        <location filename="../src/camera/uppcamera.cpp" line="321"/>
         <source>Could not start the camera&apos;s video interface.</source>
         <translation>Das Video-Interface der Kamera konnte nicht gestartet werden.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="265"/>
+        <location filename="../src/camera/uppcamera.cpp" line="333"/>
         <source>Camera did not accept the initialisation command.</source>
         <translation>Die Kamera hat den Initialisierungsbefehl nicht angenommen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="272"/>
+        <location filename="../src/camera/uppcamera.cpp" line="342"/>
         <source>Camera did not accept the connect command.</source>
         <translation>Die Kamera hat den Verbindungsbefehl nicht angenommen.</translation>
     </message>
@@ -316,6 +459,35 @@ Diese Kameras sind keine UVC-Geräte. Deshalb bindet kein Kerneltreiber sie, und
         <location filename="../qml/pages/RenameDialog.qml" line="68"/>
         <source>Saved as “%1”</source>
         <translation>Wird gespeichert als „%1“</translation>
+    </message>
+</context>
+<context>
+    <name>RootConfirmDialog</name>
+    <message>
+        <location filename="../qml/pages/RootConfirmDialog.qml" line="28"/>
+        <source>Start helper</source>
+        <translation>Helfer starten</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/RootConfirmDialog.qml" line="35"/>
+        <source>This starts a small helper service running as root. It only reads, and only these things:</source>
+        <translation>Damit startet ein kleiner Hilfsdienst mit root-Rechten. Er liest nur, und nur Folgendes:</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/RootConfirmDialog.qml" line="44"/>
+        <source>• which processes, of any user, have the camera open
+• the kernel&apos;s USB table entry for the camera
+• kernel log and journal lines that mention USB
+• lsusb output for the camera, if lsusb is installed</source>
+        <translation>• welche Prozesse, egal welches Benutzers, die Kamera geöffnet haben
+• den Eintrag der Kamera in der USB-Tabelle des Kernels
+• Zeilen aus Kernel-Log und Journal, die USB erwähnen
+• die lsusb-Ausgabe zur Kamera, falls lsusb installiert ist</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/RootConfirmDialog.qml" line="55"/>
+        <source>Log lines come from the whole system. Addresses and identifiers are removed, but read the report before passing it on. The helper stops when you leave the report page and is never started at boot.</source>
+        <translation>Log-Zeilen stammen aus dem ganzen System. Adressen und Kennungen werden entfernt, trotzdem den Bericht vor dem Weitergeben lesen. Der Helfer endet beim Verlassen der Berichtsseite und startet nie beim Booten.</translation>
     </message>
 </context>
 <context>
@@ -722,27 +894,27 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCamera</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="455"/>
+        <location filename="../src/camera/uppcamera.cpp" line="547"/>
         <source>Off</source>
         <translation>Aus</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="456"/>
+        <location filename="../src/camera/uppcamera.cpp" line="548"/>
         <source>Looking for camera…</source>
         <translation>Suche Kamera…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="457"/>
+        <location filename="../src/camera/uppcamera.cpp" line="549"/>
         <source>Connecting…</source>
         <translation>Verbinde…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="458"/>
+        <location filename="../src/camera/uppcamera.cpp" line="550"/>
         <source>Live</source>
         <translation>Live</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="459"/>
+        <location filename="../src/camera/uppcamera.cpp" line="551"/>
         <source>Problem</source>
         <translation>Problem</translation>
     </message>
@@ -750,7 +922,7 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCameraWorker</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="356"/>
+        <location filename="../src/camera/uppcamera.cpp" line="431"/>
         <source>USB subsystem unavailable.</source>
         <translation>USB-Subsystem nicht verfügbar.</translation>
     </message>

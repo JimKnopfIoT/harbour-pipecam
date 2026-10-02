@@ -7,6 +7,7 @@
  */
 #include "uppcamera.h"
 #include "uppprotocol.h"
+#include "diaglog.h"
 
 #include <libusb-1.0/libusb.h>
 
@@ -19,6 +20,31 @@ static const int RETRY_DELAY_MS = 1000;
 /* Bulk read timeout. Also the granularity at which the thread notices a stop
  * request, so it must stay comfortably under a second of UI lag. */
 static const int READ_TIMEOUT_MS = 1000;
+
+static QString usbErr(int rc)
+{
+    return QString::fromLatin1(libusb_error_name(rc));
+}
+
+/* libusb's own debug output, verbose mode only. Straight into the diagnostic
+ * log rather than through qDebug: at debug level libusb is chatty, and none of
+ * it belongs in the system journal. */
+static void LIBUSB_CALL libusbLog(libusb_context *, enum libusb_log_level, const char *str)
+{
+    QString line = QString::fromLocal8Bit(str);
+    while (line.endsWith(QLatin1Char('\n')))
+        line.chop(1);
+    DiagLog::instance()->append(QStringLiteral("libusb: ") + line);
+}
+
+/* Debug while finding and opening the camera — that is where a failure needs
+ * explaining — and back to warnings once streaming, where debug level would
+ * log every one of ~1000 bulk transfers a second. */
+static void setLibusbVerbose(libusb_context *ctx, bool on)
+{
+    libusb_set_option(ctx, LIBUSB_OPTION_LOG_LEVEL,
+                      on ? LIBUSB_LOG_LEVEL_DEBUG : LIBUSB_LOG_LEVEL_WARNING);
+}
 
 /* =========================================================================
  * UppCameraWorker
@@ -104,6 +130,12 @@ int UppCameraWorker::openDevice(libusb_context *ctx, libusb_device_handle **out,
         libusb_device_handle *h = libusb_open_device_with_vid_pid(
                     ctx, upp::KNOWN_DEVICES[i].vid, upp::KNOWN_DEVICES[i].pid);
         if (h) {
+            libusb_device *dev = libusb_get_device(h);
+            PIPECAM_TRACE(QStringLiteral("opened %1:%2 at bus %3 address %4")
+                          .arg(upp::KNOWN_DEVICES[i].vid, 4, 16, QChar('0'))
+                          .arg(upp::KNOWN_DEVICES[i].pid, 4, 16, QChar('0'))
+                          .arg(libusb_get_bus_number(dev))
+                          .arg(libusb_get_device_address(dev)));
             *out = h;
             return 0;
         }
@@ -227,14 +259,46 @@ int UppCameraWorker::handshake(libusb_device_handle *h, QString *err)
     rc = libusb_set_configuration(h, 1);
     if (rc < 0 && rc != LIBUSB_ERROR_BUSY)
         qWarning() << "pipecam: set_configuration:" << libusb_error_name(rc);
+    PIPECAM_TRACE(QStringLiteral("set_configuration(1): %1").arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)));
 
-    /* Both interfaces, or the stream never starts. */
+    /* Both interfaces, or the stream never starts.
+     *
+     * Each failure gets its own message with the libusb code attached: in
+     * 0.1.1 every one of them read "camera is busy", which turned the first
+     * field report into guesswork. The code is also what a user can quote. */
     for (int iface = upp::IFACE_IAP; iface <= upp::IFACE_STREAM; ++iface) {
+        if (DiagLog::isVerbose()) {
+            const int k = libusb_kernel_driver_active(h, iface);
+            PIPECAM_TRACE(QStringLiteral("interface %1: kernel driver active = %2")
+                          .arg(iface).arg(k == 0 ? QStringLiteral("no") : k == 1 ? QStringLiteral("yes") : usbErr(k)));
+        }
         rc = libusb_claim_interface(h, iface);
+        PIPECAM_TRACE(QStringLiteral("claim interface %1: %2").arg(iface).arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)));
         if (rc < 0) {
-            *err = (rc == LIBUSB_ERROR_ACCESS)
-                 ? QObject::tr("Not allowed to open the camera (USB permissions).")
-                 : QObject::tr("Camera is busy — unplug and replug it.");
+            qWarning() << "pipecam: claim interface" << iface << "failed:" << libusb_error_name(rc);
+            switch (rc) {
+            case LIBUSB_ERROR_ACCESS:
+                *err = QObject::tr("Not allowed to open the camera (USB permissions).");
+                break;
+            case LIBUSB_ERROR_BUSY:
+                *err = QObject::tr("Camera is in use by another program or driver "
+                                   "(interface %1). Close other camera apps, or "
+                                   "unplug and replug it.").arg(iface);
+                break;
+            case LIBUSB_ERROR_NOT_FOUND:
+                *err = QObject::tr("This camera has no interface %1 — an unknown "
+                                   "variant. Please send a diagnostic report "
+                                   "(Settings → About).").arg(iface);
+                break;
+            default:
+                *err = QObject::tr("Could not take over the camera's USB "
+                                   "interface %1.").arg(iface);
+                break;
+            }
+            *err += QStringLiteral(" [%1]").arg(usbErr(rc));
+            /* Give back what was claimed, so the retry starts clean. */
+            for (int j = upp::IFACE_IAP; j < iface; ++j)
+                libusb_release_interface(h, j);
             return rc;
         }
     }
@@ -251,8 +315,11 @@ int UppCameraWorker::handshake(libusb_device_handle *h, QString *err)
     }
 
     rc = libusb_set_interface_alt_setting(h, upp::IFACE_STREAM, upp::STREAM_ALTSETTING);
+    PIPECAM_TRACE(QStringLiteral("alt setting %1 on interface %2: %3").arg(upp::STREAM_ALTSETTING)
+                  .arg(upp::IFACE_STREAM).arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)));
     if (rc < 0) {
-        *err = QObject::tr("Could not start the camera's video interface.");
+        *err = QObject::tr("Could not start the camera's video interface.")
+             + QStringLiteral(" [%1]").arg(usbErr(rc));
         return rc;
     }
     libusb_clear_halt(h, upp::EP_STREAM_OUT);
@@ -261,15 +328,19 @@ int UppCameraWorker::handshake(libusb_device_handle *h, QString *err)
     rc = libusb_bulk_transfer(h, upp::EP_IAP_OUT,
                               const_cast<unsigned char *>(upp::MAGIC_INIT),
                               upp::MAGIC_INIT_LEN, &transferred, 1000);
+    PIPECAM_TRACE(QStringLiteral("init command: %1, %2 bytes").arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)).arg(transferred));
     if (rc < 0) {
-        *err = QObject::tr("Camera did not accept the initialisation command.");
+        *err = QObject::tr("Camera did not accept the initialisation command.")
+             + QStringLiteral(" [%1]").arg(usbErr(rc));
         return rc;
     }
     rc = libusb_bulk_transfer(h, upp::EP_STREAM_OUT,
                               const_cast<unsigned char *>(upp::CONNECT_CMD),
                               upp::CONNECT_CMD_LEN, &transferred, 1000);
+    PIPECAM_TRACE(QStringLiteral("connect command: %1, %2 bytes").arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)).arg(transferred));
     if (rc < 0) {
-        *err = QObject::tr("Camera did not accept the connect command.");
+        *err = QObject::tr("Camera did not accept the connect command.")
+             + QStringLiteral(" [%1]").arg(usbErr(rc));
         return rc;
     }
     return 0;
@@ -293,6 +364,8 @@ void UppCameraWorker::streamLoop(libusb_device_handle *h)
                 continue;           /* idle camera, not an error */
             /* Anything else (NO_DEVICE, IO, PIPE) means the cable moved or the
              * device reset. Leave and let the supervision loop reconnect. */
+            qWarning() << "pipecam: stream ended:" << libusb_error_name(rc)
+                       << "after" << emitted << "frames";
             return;
         }
         if (n < upp::PAYLOAD_OFFSET)
@@ -326,6 +399,8 @@ void UppCameraWorker::streamLoop(libusb_device_handle *h)
                                a[0] == 0xFF && a[1] == 0xD8 &&
                                a[len - 2] == 0xFF && a[len - 1] == 0xD9;
             ++emitted;
+            if (emitted == upp::WARMUP_FRAMES + 1)
+                qInfo() << "pipecam: first frame," << len << "bytes, jpeg" << (valid ? "valid" : "INVALID");
             if (valid && emitted > upp::WARMUP_FRAMES) {
                 QImage img = QImage::fromData(acc, "JPEG");
                 if (!img.isNull()) {
@@ -356,6 +431,11 @@ void UppCameraWorker::run()
         emit statusChanged(UppCamera::Error, tr("USB subsystem unavailable."));
         return;
     }
+    libusb_set_log_cb(ctx, libusbLog, LIBUSB_LOG_CB_CONTEXT);
+
+    /* What was last reported, so a camera that fails the same way once a
+     * second for an hour leaves one log line, not 3600. */
+    QString lastLogged;
 
     /* Supervision loop: the 10 m cable will be unplugged, kinked and pulled.
      * Treat a lost camera as a normal state to recover from, not a failure. */
@@ -364,8 +444,13 @@ void UppCameraWorker::run()
         QString err;
 
         emit statusChanged(UppCamera::Searching, QString());
+        setLibusbVerbose(ctx, DiagLog::isVerbose());
         int rc = openDevice(ctx, &h, &err);
         if (rc != 0) {
+            if (err != lastLogged) {
+                qInfo() << "pipecam: open:" << libusb_error_name(rc) << "-" << err;
+                lastLogged = err;
+            }
             emit statusChanged(rc == LIBUSB_ERROR_ACCESS ? UppCamera::Error
                                                          : UppCamera::Searching, err);
             /* Sleep in slices so a stop request is still honoured promptly. */
@@ -378,6 +463,10 @@ void UppCameraWorker::run()
         emit deviceInfoReady(collectDeviceInfo(h));
         rc = handshake(h, &err);
         if (rc != 0) {
+            if (err != lastLogged) {
+                qWarning() << "pipecam: handshake failed:" << err;
+                lastLogged = err;
+            }
             emit statusChanged(UppCamera::Error, err);
             libusb_close(h);
             for (int i = 0; i < RETRY_DELAY_MS / 100 && !m_stop.loadAcquire(); ++i)
@@ -387,6 +476,9 @@ void UppCameraWorker::run()
 
         /* The device needs a moment after CONNECT before the stream is coherent. */
         msleep(300);
+        qInfo() << "pipecam: handshake ok, streaming";
+        lastLogged.clear();
+        setLibusbVerbose(ctx, false);
         emit statusChanged(UppCamera::Streaming, QString());
         streamLoop(h);
 

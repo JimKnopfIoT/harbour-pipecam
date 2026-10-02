@@ -10,10 +10,17 @@
  */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
+import harbour.pipecam 1.0
+import "../components"
 
 Page {
     id: page
     allowedOrientations: Orientation.Landscape
+
+    readonly property string repoUrl: "https://github.com/JimKnopfIoT/harbour-pipecam"
+    readonly property string version: diagReport.version
+
+    DiagReport { id: diagReport }
 
     SilicaFlickable {
         anchors.fill: parent
@@ -105,14 +112,58 @@ Page {
                            + "Provided as is, with no warranty.")
             }
 
+            SectionHeader { text: qsTr("Source code and bug reports") }
+
+            LinkRow {
+                label: qsTr("Source code")
+                url: page.repoUrl
+            }
+            LinkRow {
+                label: qsTr("Report a problem")
+                url: page.repoUrl + "/issues"
+            }
+
+            SectionHeader { text: qsTr("Diagnostics") }
+
             Label {
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 wrapMode: Text.Wrap
+                font.pixelSize: Theme.fontSizeSmall
+                color: Theme.secondaryColor
+                text: qsTr("If the camera does not work: switch on the verbose "
+                           + "log, unplug and replug the camera, then create a "
+                           + "diagnostic report and attach it to a bug report.")
+            }
+
+            TextSwitch {
+                text: qsTr("Verbose log")
+                description: qsTr("Records every step of opening the camera, "
+                                  + "including libusb's own messages. Also "
+                                  + "written to %1, so it survives a crash. "
+                                  + "Leave it off when everything works.")
+                             .arg("~/.cache/harbour-pipecam/pipecam.log")
+                checked: app.settings.verboseLog
+                onClicked: app.settings.verboseLog = !app.settings.verboseLog
+            }
+
+            Button {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("Create diagnostic report")
+                onClicked: pageStack.push(Qt.resolvedUrl("DiagReportPage.qml"))
+            }
+
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: Theme.secondaryColor
-                text: "https://github.com/JimKnopfIoT/harbour-pipecam"
+                text: qsTr("Version %1").arg(page.version)
             }
+
+            Item { width: 1; height: Theme.paddingLarge }
         }
 
         VerticalScrollDecorator {}
