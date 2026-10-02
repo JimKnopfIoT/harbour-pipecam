@@ -15,7 +15,13 @@ TARGET = harbour-pipecam
 
 CONFIG += sailfishapp sailfishapp_i18n c++11
 
-QT += quick
+# network: QLocalSocket/QLocalServer between the app and its optional root
+# helper. dbus: starting that helper's systemd unit. Neither talks to a network.
+QT += quick network dbus
+
+# The version reaches the build as DEFINES+=PIPECAM_VERSION=... from the spec;
+# a plain qmake run outside rpm says "dev".
+!contains(DEFINES, PIPECAM_VERSION=.*): DEFINES += PIPECAM_VERSION=dev
 
 # --- External libraries -----------------------------------------------------
 # libusb-1.0   the camera is vendor-class, so uvcvideo never binds it and there
@@ -44,7 +50,8 @@ SAILFISHAPP_ICONS = 86x86 108x108 128x128 172x172
 # --- Sources ----------------------------------------------------------------
 INCLUDEPATH += \
     src/app \
-    src/camera
+    src/camera \
+    src/diag
 
 HEADERS += \
     src/app/capturestore.h \
@@ -52,7 +59,13 @@ HEADERS += \
     src/camera/mjpegrecorder.h \
     src/camera/uppcamera.h \
     src/camera/uppprotocol.h \
-    src/camera/videoframeitem.h
+    src/camera/videoframeitem.h \
+    src/diag/diaglog.h \
+    src/diag/diagreport.h \
+    src/diag/redact.h \
+    src/diag/rootclient.h \
+    src/diag/roothelper.h \
+    src/diag/usbdump.h
 
 SOURCES += \
     src/app/harbour-pipecam.cpp \
@@ -60,7 +73,13 @@ SOURCES += \
     src/camera/frameoverlay.cpp \
     src/camera/mjpegrecorder.cpp \
     src/camera/uppcamera.cpp \
-    src/camera/videoframeitem.cpp
+    src/camera/videoframeitem.cpp \
+    src/diag/diaglog.cpp \
+    src/diag/diagreport.cpp \
+    src/diag/redact.cpp \
+    src/diag/rootclient.cpp \
+    src/diag/roothelper.cpp \
+    src/diag/usbdump.cpp
 
 # --- udev rule ---------------------------------------------------------------
 # /dev/bus/usb/* is root:usb 0660 and the app user is not in the `usb` group, so
@@ -75,6 +94,19 @@ SOURCES += \
 udevrule.files = data/999-harbour-pipecam-usb.rules
 udevrule.path  = /etc/udev/rules.d
 INSTALLS += udevrule
+
+# --- optional root helper for the diagnostic report ----------------------------
+# Installed, never enabled: no [Install] section, nothing starts it at boot. The
+# "root data" switch on the report page starts it through systemd, which the
+# polkit rule allows for exactly this unit and for defaultuser only. It exits by
+# itself once the app is gone. See src/diag/roothelper.h.
+helperservice.files = data/harbour-pipecam-helper.service
+helperservice.path  = /usr/lib/systemd/system
+INSTALLS += helperservice
+
+polkitrule.files = data/50-harbour-pipecam.rules
+polkitrule.path  = /usr/share/polkit-1/rules.d
+INSTALLS += polkitrule
 
 # --- QML / assets -----------------------------------------------------------
 coverimages.files = qml/images/cover-logo.png
@@ -91,13 +123,18 @@ OTHER_FILES += \
     qml/pages/SettingsPage.qml \
     qml/pages/SpecsPage.qml \
     qml/pages/AboutPage.qml \
+    qml/pages/DiagReportPage.qml \
+    qml/pages/RootConfirmDialog.qml \
     qml/components/ShutterButton.qml \
     qml/components/RecordButton.qml \
     qml/components/GainSlider.qml \
     qml/components/RollIndicator.qml \
     qml/components/StatusOverlay.qml \
+    qml/components/LinkRow.qml \
     harbour-pipecam.desktop \
     rpm/harbour-pipecam.spec \
-    data/999-harbour-pipecam-usb.rules
+    data/999-harbour-pipecam-usb.rules \
+    data/harbour-pipecam-helper.service \
+    data/50-harbour-pipecam.rules
 
 DISTFILES += README.md

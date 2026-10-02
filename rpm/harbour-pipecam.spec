@@ -1,7 +1,7 @@
 # Neutral packaging metadata — no personal identifiers (see CLAUDE.md anonymity rules).
 Name:       harbour-pipecam
 Summary:    Viewer and recorder for USB pipe inspection cameras
-Version:    0.1.1
+Version:    0.1.2
 Release:    1
 # ANONYMITY: neutral build host so built RPMs carry no real hostname/domain.
 # Without this, the RPM BUILDHOST tag leaks the build machine's name and LAN
@@ -44,7 +44,7 @@ on-device: no network access, no telemetry.
 %setup -q
 
 %build
-%qmake5
+%qmake5 "DEFINES+=PIPECAM_VERSION=%{version}-%{release}"
 %make_build
 
 %install
@@ -58,8 +58,17 @@ if [ -x /sbin/udevadm ] || [ -x /usr/bin/udevadm ]; then
     udevadm control --reload-rules >/dev/null 2>&1 || :
     udevadm trigger --subsystem-match=usb >/dev/null 2>&1 || :
 fi
+# Make systemd see the (never enabled) diagnostics helper unit.
+systemctl daemon-reload >/dev/null 2>&1 || :
+
+%preun
+# Removing the package while the helper runs must not leave it orphaned.
+if [ $1 -eq 0 ]; then
+    systemctl stop harbour-pipecam-helper.service >/dev/null 2>&1 || :
+fi
 
 %postun
+systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -eq 0 ]; then
     if [ -x /sbin/udevadm ] || [ -x /usr/bin/udevadm ]; then
         udevadm control --reload-rules >/dev/null 2>&1 || :
@@ -73,8 +82,19 @@ fi
 %{_datadir}/applications/%{name}.desktop
 %{_datadir}/icons/hicolor/*/apps/%{name}.png
 %config %{_sysconfdir}/udev/rules.d/999-harbour-pipecam-usb.rules
+/usr/lib/systemd/system/harbour-pipecam-helper.service
+%{_datadir}/polkit-1/rules.d/50-harbour-pipecam.rules
 
 %changelog
+* Fri Oct 02 2026 harbour-pipecam contributors 0.1.2-1
+- Diagnostic report (Settings -> About): app, system and full USB details of
+  the camera, anonymised so it can be posted as it is. Optional root helper
+  adds the kernel's view: who holds the camera, kernel log, journal.
+- Verbose log switch on the About page, kept across a crash.
+- "Camera is busy" no longer covers every failure: each USB error has its own
+  message and shows the libusb code.
+- About page: the GitHub link opens the repository; new link to the issues.
+
 * Sun Aug 30 2026 harbour-pipecam contributors 0.1.1-1
 - Jolla J2 (and any phone with a camera cutout): the viewfinder now fills the
   whole screen instead of leaving a strip of desktop beside the notch, and the

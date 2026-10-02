@@ -141,9 +141,33 @@ ships `999-android-system.rules` containing a catch-all that resets **every** US
 node to `0660 root:usb`, and udev applies files in filename order with the last
 assignment winning — a `99-` prefixed rule is silently overwritten.
 
-The `.desktop` file also has no `[X-Sailjail]` section, deliberately: no stock
-sandbox permission grants raw USB access, and the sandbox gives an application a
-private `/dev`, so a sandboxed build cannot reach the camera at all.
+The `.desktop` file also says `Sandboxing=Disabled`, deliberately: no stock
+sandbox permission grants raw USB access. Leaving the `[X-Sailjail]` section
+out is not the same thing — on Sailfish OS 5.x such an app is started in the
+default sandbox (own PID namespace, no-new-privileges, seccomp).
+
+## Reporting a problem
+
+Settings → About → **Create diagnostic report** collects everything needed to
+debug a camera that is found but will not start: app and library versions, the
+Sailfish OS release and phone model, the camera's complete USB descriptor tree
+(what `lsusb -v` would print), which kernel driver owns each interface, the
+device node's permissions, the Type-C port role, an optional claim test, and the
+app's own log. Switch on **Verbose log** first to include libusb's messages; it
+is also written to `~/.cache/harbour-pipecam/pipecam.log` and survives a crash.
+
+The report is anonymised on the phone before you see it — serial numbers, host
+name, user name, home directory, MAC/IP/e-mail addresses and IMEI-length
+numbers are removed — and is formatted to be pasted into an
+[issue](https://github.com/JimKnopfIoT/harbour-pipecam/issues) as it is.
+
+**Include root data** adds the kernel's view through a small read-only helper
+(`harbour-pipecam-helper.service`): which process of any user holds the camera,
+the kernel's USB table entry, and kernel-log and journal lines about USB. A
+polkit rule lets the phone's user start and stop exactly that unit; it is never
+started at boot and exits by itself when the app no longer uses it.
+
+From a terminal: `harbour-pipecam --report` (add `--root` for the helper part).
 
 ## Building
 

@@ -94,6 +94,15 @@ ApplicationWindow {
          * shown. On by default: having straightened the picture on screen,
          * finding the recording still sideways is a surprise, not a feature. */
         property bool captureRotated: true
+        /* Verbose diagnostic log (About page). Persisted on purpose: a problem
+         * that only shows at startup needs it on before the app starts. */
+        property bool verboseLog: false
+    }
+
+    Binding {
+        target: diagLog
+        property: "verbose"
+        value: settingsGroup.verboseLog
     }
 
     /* The viewfinder's current roll, lifted to app level so the recorder and the
