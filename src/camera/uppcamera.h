@@ -1,43 +1,10 @@
 /*
- * uppcamera.h — QML-facing facade for the USeePlus USB endoscope.
- *
- * DESIGN
- * ------
- * Two objects, two threads:
- *
- *   UppCameraWorker (QThread)   owns the libusb handle and does nothing but
- *                               open -> handshake -> read -> reassemble ->
- *                               decode. It never touches Qt Quick. It emits a
- *                               finished frame as (QImage, QByteArray) — the
- *                               decoded image for display and the ORIGINAL
- *                               JPEG bytes for snapshots and recording, so
- *                               neither path ever re-encodes.
- *
- *   UppCamera (QObject)         lives in the GUI thread, exposed to QML. Holds
- *                               the most recent frame, computes fps, and turns
- *                               worker signals into QML properties.
- *
- * Why the worker decodes: a 640x480 JPEG costs a few milliseconds to decode.
- * At 15 fps that is a noticeable slice of the GUI thread's frame budget, and
- * it is trivially parallel work with no Qt Quick dependency. Decoding in the
- * worker keeps the UI thread free for the UI.
- *
- * Why we keep the raw JPEG too: the camera hands us MJPEG. A snapshot is then
- * literally "write these bytes to a file" and a recording is "mux these bytes"
- * (see MjpegRecorder). Re-encoding a decoded QImage would cost CPU and quality
- * for nothing.
- *
- * The one exception is the single-interface variant (uppprotocol.h), which
- * sends uncompressed YUYV. The worker encodes each of its frames to JPEG once,
- * so everything downstream still sees the same (QImage, JPEG) pair and needs
- * no second code path.
- *
- * RESILIENCE
- * ----------
- * The cable is ~10 m and gets moved around a pipe; disconnects are expected,
- * not exceptional. The worker therefore runs a supervision loop: if the device
- * is absent or a transfer fails, it reports the state, waits, and retries
- * forever until asked to stop. QML just watches `status`.
+ * QML facade for the USeePlus USB endoscope.
+ *   UppCameraWorker (QThread): libusb, handshake, reassembly, decode; no Qt Quick.
+ *     Emits (QImage, original JPEG); snapshot/recording use the JPEG, no re-encode.
+ *     YUYV variant: encoded to JPEG once in the worker.
+ *   UppCamera (GUI thread): QML properties, latest frame, fps.
+ * Worker retries open forever until stopped; disconnects are expected.
  *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
@@ -59,9 +26,6 @@
 struct libusb_context;
 struct libusb_device_handle;
 
-/* ------------------------------------------------------------------------- */
-/* Worker thread: raw USB, no Qt Quick.                                      */
-/* ------------------------------------------------------------------------- */
 class UppCameraWorker : public QThread
 {
     Q_OBJECT
@@ -69,59 +33,47 @@ public:
     explicit UppCameraWorker(QObject *parent = 0);
     ~UppCameraWorker();
 
-    /* Ask the loop to unwind. Safe from any thread. The bulk reads use a 1 s
-     * timeout, so the thread notices within ~1 s without needing to be killed. */
+    /* Any thread. Takes effect within ~1 s (bulk read timeout). */
     void requestStop();
 
-    /* Brightness multiplier, as gain x 100 (100 = off). Stored as an atomic int
-     * because the GUI thread writes it while the worker reads it every frame,
-     * and a full mutex for one integer that can safely be a frame stale would
-     * be ceremony. */
+    /* gain x 100, 100 = off. Written by GUI thread, read by worker. */
     void setGainPercent(int percent);
 
 signals:
-    /* image: decoded frame for display. jpeg: the untouched bytes off the wire. */
+    /* jpeg: untouched wire bytes. */
     void frameReady(const QImage &image, const QByteArray &jpeg);
-    /* status is a UppCamera::Status value; int keeps this class independent. */
+    /* status: UppCamera::Status */
     void statusChanged(int status, const QString &detail);
     void buttonChanged(bool pressed);
-    /* Emitted once per successful open, with the descriptor strings. */
+    /* Once per successful open. */
     void deviceInfoReady(const QVariantMap &info);
 
 protected:
     void run();
 
 private:
-    /* Find and open the camera. Returns 0 and sets *out on success, otherwise a
-     * libusb error code with *err describing what a user can do about it. */
+    /* 0 and *out on success; else libusb error code and *err. */
     int openDevice(libusb_context *ctx, libusb_device_handle **out, UserText *err);
-    /* Run the handshake of whichever variant m_variant names. */
     int handshake(libusb_device_handle *h, UserText *err);
-    /* Steps 2-6 of the MJPEG handshake documented in uppprotocol.h. */
+    /* Steps 2-6, see uppprotocol.h. */
     int handshakeMjpeg(libusb_device_handle *h, UserText *err);
-    /* getinfo + camera_up of the single-interface YUYV variant. */
     int handshakeYuyv(libusb_device_handle *h, UserText *err);
-    /* The read loop of the current variant. Returns when stopped or on a
-     * fatal USB error. */
+    /* Returns when stopped or on fatal USB error. */
     void streamLoop(libusb_device_handle *h);
     void streamLoopMjpeg(libusb_device_handle *h);
     void streamLoopYuyv(libusb_device_handle *h);
-    /* Hand the camera back after streamLoop(), per variant. */
     void teardown(libusb_device_handle *h);
 
-    /* Apply the current gain to a freshly decoded frame, in place. */
+    /* In place. */
     void applyGain(QImage *image) const;
 
     QAtomicInt m_stop;
     QAtomicInt m_gainPercent;
     bool m_lastButton;
-    /* upp::Variant of the camera currently open; set by run() after open. */
+    /* upp::Variant */
     int m_variant;
 };
 
-/* ------------------------------------------------------------------------- */
-/* GUI-thread facade, registered as a QML type.                              */
-/* ------------------------------------------------------------------------- */
 class UppCamera : public QObject
 {
     Q_OBJECT
@@ -133,43 +85,24 @@ class UppCamera : public QObject
     Q_PROPERTY(qreal fps READ fps NOTIFY fpsChanged)
     Q_PROPERTY(int frameCount READ frameCount NOTIFY frameAvailable)
     Q_PROPERTY(bool buttonPressed READ buttonPressed NOTIFY buttonPressedChanged)
-    /* Software brightness, 1.0 = untouched, up to maxGain.
-     *
-     * This exists because the LED ring cannot be dimmed from here (proven —
-     * see the “Protocol” section of README.md) and a pipe is dark. It is applied in the worker
-     * thread, right after the JPEG is decoded, so the GUI thread never does
-     * pixel work.
-     *
-     * It affects what you see AND what a snapshot contains (a snapshot with
-     * gain has to be re-encoded, exactly like the burnt-in timestamp). It does
-     * NOT affect video: recording muxes the camera's original JPEGs, and
-     * re-encoding every frame to brighten it would cost far more than it is
-     * worth. */
+    /* Software brightness, 1.0 = off .. maxGain. Applied in worker.
+     * Affects display and snapshots (re-encoded), not video (original JPEGs). */
     Q_PROPERTY(qreal gain READ gain WRITE setGain NOTIFY gainChanged)
     Q_PROPERTY(qreal maxGain READ maxGain CONSTANT)
-    /* Geometry of the stream. Not constant: the MJPEG variant sends 640x480,
-     * the single-interface YUYV variant 320x240. Follows the frames actually
-     * received, 640x480 until the first one. */
+    /* From received frames: MJPEG 640x480, YUYV 320x240; 640x480 before first. */
     Q_PROPERTY(int frameWidth READ frameWidth NOTIFY frameSizeChanged)
     Q_PROPERTY(int frameHeight READ frameHeight NOTIFY frameSizeChanged)
-    /* Whether the LED ring on the camera head can be driven from here.
-     *
-     * Currently false, and that is a measured result rather than a stub: 45 s
-     * of passive capture showed no header field reacting to the cable's dimmer
-     * wheel, no LED command exists in any reverse-engineered reference, and
-     * sweeping the CONNECT command's two unexplained argument bytes changed
-     * nothing (see the “Protocol” section of README.md). The untried lever is the iAP control
-     * endpoint. The UI reads this flag, so proving a command and returning true
-     * here is all that is needed to light the slider up. */
+    /* false: no known LED command (header fields, CONNECT args ruled out;
+     * iAP endpoint untested). UI enables the slider when true. */
     Q_PROPERTY(bool ledSupported READ ledSupported CONSTANT)
 
 public:
     enum Status {
-        Idle,          /* stopped by the user                                  */
-        Searching,     /* no camera on the bus — cable unplugged?              */
-        Connecting,    /* found it, running the handshake                      */
-        Streaming,     /* frames arriving                                      */
-        Error          /* found it but could not use it (usually permissions)  */
+        Idle,
+        Searching,     /* not on the bus */
+        Connecting,    /* handshake */
+        Streaming,
+        Error          /* found but unusable, usually permissions */
     };
     Q_ENUMS(Status)
 
@@ -191,22 +124,16 @@ public:
     int frameHeight() const;
     bool ledSupported() const { return false; }
 
-    /* Everything the device itself tells us, read from the USB descriptors when
-     * the camera is opened: manufacturer, product, serial, VID:PID, bus
-     * address, USB speed. Exposed as a QVariantMap so the specs page can list
-     * it without a bespoke model, and empty until a camera has been opened
-     * once. Anonymity note: the serial is the CAMERA's, not the phone's, and it
-     * is only ever shown on screen — nothing writes it to a file. */
+    /* USB descriptor data, empty until first open. Contains the camera serial:
+     * display only, never written to a file. */
     Q_PROPERTY(QVariantMap deviceInfo READ deviceInfo NOTIFY deviceInfoChanged)
     QVariantMap deviceInfo() const { return m_deviceInfo; }
 
-    /* Latest decoded frame, for the render item. Cheap: QImage is COW. */
     QImage currentImage() const { return m_image; }
-    /* Latest untouched JPEG, for snapshots and the recorder. */
     QByteArray currentJpeg() const { return m_jpeg; }
 
 public slots:
-    /* Start/stop the supervision thread. Idempotent. */
+    /* Idempotent. */
     void start();
     void stop();
 
@@ -215,12 +142,11 @@ signals:
     void runningChanged();
     void fpsChanged();
     void gainChanged();
-    /* A new frame is in currentImage()/currentJpeg(). */
     void frameAvailable();
     void buttonPressedChanged();
     void deviceInfoChanged();
     void frameSizeChanged();
-    /* Rising edge of the inline push-button — QML binds a snapshot to this. */
+    /* Rising edge. */
     void buttonClicked();
 
 private slots:
@@ -240,8 +166,7 @@ private:
     QSize m_frameSize;
     int m_frameCount;
 
-    /* fps is measured over a sliding one-second window rather than from frame
-     * deltas — the per-frame interval is far too jittery to display. */
+    /* Counted per 1 s window; per-frame deltas too jittery. */
     qreal m_fps;
     int m_fpsFrames;
     QElapsedTimer m_fpsTimer;

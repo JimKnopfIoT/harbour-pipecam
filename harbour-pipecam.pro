@@ -1,53 +1,24 @@
-# harbour-pipecam — SailfishOS qmake project
-#
-# A viewer and recorder for USB-C "pipe inspection" endoscope cameras that speak
-# the proprietary com.useeplus.protocol (Geek szitman / "supercamera",
-# 2ce3:3828). See src/camera/uppprotocol.h for the wire format.
-#
-# Build:  mb2 build, which wraps mb2 and reports the RPM path.
-#         Directly:  mb2 --target SailfishOS-<version>-aarch64 build
-#
-# The exact target version lives in scripts/lib-common.sh and nowhere else, so
-# there is one place to change it — and so this comment does not read like an
-# IP address to the anonymity scanner.
-
 TARGET = harbour-pipecam
 
 CONFIG += sailfishapp sailfishapp_i18n c++11
 
-# network: QLocalSocket/QLocalServer between the app and its optional root
-# helper. dbus: starting that helper's systemd unit. Neither talks to a network.
+# network: QLocalSocket to root helper only; dbus: systemd unit start.
 QT += quick network dbus
 
-# The version reaches the build as DEFINES+=PIPECAM_VERSION=... from the spec;
-# a plain qmake run outside rpm says "dev".
+# PIPECAM_VERSION is set by the spec; plain qmake: "dev".
 !contains(DEFINES, PIPECAM_VERSION=.*): DEFINES += PIPECAM_VERSION=dev
 
-# --- External libraries -----------------------------------------------------
-# libusb-1.0   the camera is vendor-class, so uvcvideo never binds it and there
-#              is no /dev/videoN — we drive the endpoints ourselves.
-# gstreamer    video recording is pure muxing (image/jpeg -> qtmux -> .mp4);
-#              gstreamer-app-1.0 provides the appsrc we push JPEGs into.
-#
-# Do NOT add `CONFIG += link_pkgconfig` here. sailfishapp.prf adds it itself and
-# then appends `sailfishapp` to PKGCONFIG. qmake loads CONFIG features in
-# reverse order, so naming link_pkgconfig in this file makes it resolve PKGCONFIG
-# *before* sailfishapp.prf has contributed its entry — and the link then fails
-# with undefined references to SailfishApp::application/createView.
+# No CONFIG += link_pkgconfig: resolves PKGCONFIG before sailfishapp.prf adds
+# its entry -> undefined SailfishApp::application/createView.
 PKGCONFIG += libusb-1.0 gstreamer-1.0 gstreamer-app-1.0
 
-# Bilingual: English source strings + German. libsailfishapp auto-loads the .qm
-# matching the device locale (German -> de, otherwise the English source).
 TRANSLATIONS += translations/harbour-pipecam-de.ts
 lupdate_only {
     SOURCES += qml/*.qml qml/cover/*.qml qml/pages/*.qml
 }
 
-# Installed to /usr/share/icons/hicolor/<size>/apps/ (see sailfishapp.prf).
-# Regenerate them from icons/icon.svg with ./the icon build step described in README.md.
 SAILFISHAPP_ICONS = 86x86 108x108 128x128 172x172
 
-# --- Sources ----------------------------------------------------------------
 INCLUDEPATH += \
     src/app \
     src/camera \
@@ -83,25 +54,12 @@ SOURCES += \
     src/diag/roothelper.cpp \
     src/diag/usbdump.cpp
 
-# --- udev rule ---------------------------------------------------------------
-# /dev/bus/usb/* is root:usb 0660 and the app user is not in the `usb` group, so
-# without this rule libusb cannot open the camera. The rule is scoped to the two
-# known VID:PIDs and to the device node only (DEVTYPE=usb_device), so it does
-# not loosen anything else on the bus. Same approach harbour-idrone uses for the
-# CatSniffer and harbour-sflipper for the Flipper Zero.
-#
-# The 999- prefix is load-bearing: Sailfish's 999-android-system.rules has a
-# catch-all that resets every USB node to 0660 root:usb, and udev's last
-# assignment wins. See the header of the rule file for the full explanation.
+# 999- prefix required, see rule file.
 udevrule.files = data/999-harbour-pipecam-usb.rules
 udevrule.path  = /etc/udev/rules.d
 INSTALLS += udevrule
 
-# --- optional root helper for the diagnostic report ----------------------------
-# Installed, never enabled: no [Install] section, nothing starts it at boot. The
-# "root data" switch on the report page starts it through systemd, which the
-# polkit rule allows for exactly this unit and for defaultuser only. It exits by
-# itself once the app is gone. See src/diag/roothelper.h.
+# Never enabled; started on demand, polkit allows this unit for defaultuser only.
 helperservice.files = data/harbour-pipecam-helper.service
 helperservice.path  = /usr/lib/systemd/system
 INSTALLS += helperservice
@@ -110,7 +68,6 @@ polkitrule.files = data/50-harbour-pipecam.rules
 polkitrule.path  = /usr/share/polkit-1/rules.d
 INSTALLS += polkitrule
 
-# --- QML / assets -----------------------------------------------------------
 coverimages.files = qml/images/cover-logo.png
 coverimages.path  = /usr/share/$${TARGET}/qml/images
 INSTALLS += coverimages

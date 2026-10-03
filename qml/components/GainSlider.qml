@@ -1,23 +1,5 @@
-/*
- * GainSlider.qml — vertical software brightness bar.
- *
- * WHY THIS AND NOT AN LED CONTROL
- * This bar started life as an LED dimmer. It is not one, because the LED ring
- * provably cannot be driven from the phone: 60 s of capture with the cable's
- * dimmer wheel being turned produced no change in any header field and not one
- * byte on the camera's control endpoint, while a button press in the same run
- * showed up immediately (see the “Protocol” section of README.md). The wheel is an analogue
- * potentiometer in the LED supply and the firmware never sees it.
- *
- * The underlying need is real though — a pipe is dark — so the same strip now
- * brightens the picture instead of the lamp. It is applied in the camera worker
- * right after the JPEG is decoded, so it costs the GUI thread nothing.
- *
- * Vertical and dragged rather than tapped, because it sits under the thumb of
- * the hand holding the phone while the other one feeds cable. Up is brighter.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
+/* Software gain: the LED dimmer is analogue, not reachable over USB. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 
@@ -28,7 +10,6 @@ Item {
     property real gain: 1.0
     property real maxGain: 3.0
 
-    /* Track position as 0..1, which is what the geometry actually works in. */
     readonly property real fraction: (gain - 1.0) / Math.max(0.001, maxGain - 1.0)
 
     implicitWidth: Theme.itemSizeSmall
@@ -66,8 +47,6 @@ Item {
         border.color: Qt.rgba(0, 0, 0, 0.5)
     }
 
-    /* Current value, only while it is doing something — a permanent "1.0x"
-     * would just be noise. */
     Label {
         anchors {
             bottom: track.top
@@ -93,8 +72,6 @@ Item {
 
         onPressed: setFromY(mouse.y)
         onPositionChanged: setFromY(mouse.y)
-        /* Double tap anywhere on the bar goes back to untouched. Faster than
-         * dragging exactly to the bottom, and it cannot overshoot. */
         onDoubleClicked: root.gain = 1.0
     }
 }

@@ -1,11 +1,8 @@
-# Neutral packaging metadata — no personal identifiers (see CLAUDE.md anonymity rules).
 Name:       harbour-pipecam
 Summary:    Viewer and recorder for USB pipe inspection cameras
 Version:    0.1.3
 Release:    1
-# ANONYMITY: neutral build host so built RPMs carry no real hostname/domain.
-# Without this, the RPM BUILDHOST tag leaks the build machine's name and LAN
-# domain into every published package.
+# Neutral BUILDHOST tag instead of the build machine's hostname.
 %define _buildhost reproducible-builder
 License:    GPL-3.0-or-later
 URL:        https://github.com/JimKnopfIoT/harbour-pipecam
@@ -14,11 +11,7 @@ Vendor:     harbour-pipecam contributors
 Packager:   harbour-pipecam contributors
 
 Requires:   sailfishsilica-qt5
-# libusb and the gstreamer core arrive automatically as soname dependencies of
-# the binary, so they are not listed here. qtmux does NOT: it is a plugin that
-# gstreamer dlopens at runtime, so nothing links against it and rpm cannot infer
-# it. Without this line video recording would fail at the moment the user first
-# presses record, on a device where everything else works.
+# qtmux: dlopened plugin, not an auto soname dependency.
 Requires:   gstreamer1.0-plugins-good
 BuildRequires: pkgconfig(sailfishapp)
 BuildRequires: pkgconfig(Qt5Core)
@@ -51,18 +44,14 @@ on-device: no network access, no telemetry.
 %qmake5_install
 
 %post
-# The udev rule grants the app access to the camera's raw USB node. Reload the
-# rules so it applies without a reboot; a camera plugged in before installation
-# still needs a replug to pick up the new mode.
+# Already plugged camera needs a replug.
 if [ -x /sbin/udevadm ] || [ -x /usr/bin/udevadm ]; then
     udevadm control --reload-rules >/dev/null 2>&1 || :
     udevadm trigger --subsystem-match=usb >/dev/null 2>&1 || :
 fi
-# Make systemd see the (never enabled) diagnostics helper unit.
 systemctl daemon-reload >/dev/null 2>&1 || :
 
 %preun
-# Removing the package while the helper runs must not leave it orphaned.
 if [ $1 -eq 0 ]; then
     systemctl stop harbour-pipecam-helper.service >/dev/null 2>&1 || :
 fi

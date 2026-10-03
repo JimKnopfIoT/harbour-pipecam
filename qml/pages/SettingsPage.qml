@@ -1,17 +1,4 @@
-/*
- * SettingsPage.qml — the handful of things worth making adjustable.
- *
- * Everything here exists because the hardware or the job demands it, not for
- * completeness: the camera head can be fed into a pipe upside down (mirror),
- * a round pipe rarely fills a 4:3 frame the way you want (fill mode), the
- * screen must not blank while you stare at it, and the only control you can
- * reach with ten metres of cable out is the button on it.
- *
- * Settings persist in dconf under /apps/harbour-pipecam/ via the
- * ConfigurationGroup in harbour-pipecam.qml.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 
@@ -29,10 +16,7 @@ Page {
 
             PageHeader { title: qsTr("Settings") }
 
-            /* These three used to live in the viewfinder's pulley menu. That
-             * menu had to go: its pull-down gesture is the same gesture the
-             * viewfinder needs for panning the magnified image, so the two
-             * could never both work. */
+            /* Not in a PullDownMenu on the viewfinder: its gesture is the pan gesture. */
             SectionHeader { text: qsTr("Camera") }
 
             TextSwitch {
@@ -114,8 +98,7 @@ Page {
                 description: qsTr("What the push-button on the camera cable does. "
                                   + "Turn it off if you keep catching it while "
                                   + "using the dimmer wheel next to it.")
-                /* Index order must match the menu below and the mapping in
-                 * onCurrentIndexChanged. */
+                /* Index order must match the menu and onCurrentIndexChanged. */
                 currentIndex: app.settings.cableButtonAction === "record" ? 1
                             : app.settings.cableButtonAction === "off" ? 2
                             : 0

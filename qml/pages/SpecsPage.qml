@@ -1,22 +1,4 @@
-/*
- * SpecsPage.qml — everything known about the attached camera.
- *
- * Two kinds of information, deliberately kept apart:
- *
- *   * what the DEVICE says about itself — read live from its USB descriptors
- *     every time it is opened, so these are facts about the thing on the end of
- *     the cable, not constants baked into the app;
- *   * what WE worked out — the protocol, the frame rate, the fields whose
- *     meaning is known and the ones that are not. This camera family is
- *     undocumented, so this page is the only place that knowledge is visible
- *     without reading the source.
- *
- * Worth having in the app rather than only in the repo: these cameras ship
- * under a dozen names with no data sheet, and "does my cable work with this?"
- * is answered by the VID:PID line at the top.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 

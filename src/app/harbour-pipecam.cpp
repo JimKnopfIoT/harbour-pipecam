@@ -1,20 +1,7 @@
 /*
- * harbour-pipecam — a viewer and recorder for USB-C pipe inspection cameras
- * on Sailfish OS.
+ * harbour-pipecam — USB-C pipe inspection camera viewer/recorder.
  *
- * Entry point. Registers the three C++ types QML needs and hands off to
- * libsailfishapp:
- *
- *   PipeCam.Camera    UppCamera      the USB camera (see src/camera/uppcamera.h)
- *   PipeCam.Viewfinder VideoFrameItem the scene-graph item that draws frames
- *   PipeCam.Recorder  MjpegRecorder  MJPEG -> .mp4 muxer
- *   PipeCam.Captures  CaptureStore   where snapshots and videos live
- *   PipeCam.DiagReport DiagReport    the anonymised diagnostic report
- *
- * and two context properties, diagLog (DiagLog) and rootHelper (RootClient).
- *
- * `harbour-pipecam --root-helper` is not the app: it is the optional root
- * helper, started by systemd for the diagnostic report (src/diag/roothelper.h).
+ * --root-helper: root helper mode, started by systemd (see roothelper.h).
  *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
@@ -70,20 +57,15 @@ int main(int argc, char *argv[])
         if (std::strcmp(argv[i], "--root-helper") == 0)
             return rootHelperMain(argc, argv);
 
-    /* Before anything can log, so the report sees the whole run. */
+    /* before anything logs */
     DiagLog::install();
 
-    /* `harbour-pipecam --report [--root]`: the same anonymised report as the
-     * About page, on stdout, for a terminal or for when the UI will not come
-     * up at all. --root asks the helper for the kernel's view as well. */
+    /* --report [--root]: anonymised report to stdout */
     for (int i = 1; i < argc; ++i)
         if (std::strcmp(argv[i], "--report") == 0)
             return reportMain(argc, argv);
 
-    /* GStreamer must be initialised before any recorder is constructed, and it
-     * wants a crack at argv. Doing it here — rather than lazily on first
-     * record — means a broken plugin set is reported at startup instead of the
-     * moment the user presses record. */
+    /* before any MjpegRecorder exists; takes argv */
     MjpegRecorder::initGStreamer(&argc, &argv);
 
     QScopedPointer<QGuiApplication> app(SailfishApp::application(argc, argv));

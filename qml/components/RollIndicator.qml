@@ -1,24 +1,4 @@
-/*
- * RollIndicator.qml — shows how far the picture is rotated, and puts it back.
- *
- * A camera head sliding down a pipe twists as it goes, so the picture arrives at
- * an arbitrary angle. Two-finger rotation on the viewfinder turns it back, but a
- * rotated image gives you no reference for how far you have turned it — after a
- * few corrections you no longer know which way is actually up.
- *
- * Hence a dial: a fixed ring with a dot that rides around it, plus a small tick
- * at the top marking level. The dot is where "up in the picture" currently
- * points.
- *
- * IT IS ALSO THE CONTROL, not just a readout. Drag anywhere on the ring and the
- * picture follows your finger; tap the middle and it snaps back to level. That
- * matters because the two-finger twist on the viewfinder is a fiddly gesture to
- * land while holding a phone in one hand and ten metres of cable in the other —
- * and if it does not register, a dial that only *displays* the angle leaves you
- * with no way to fix the picture at all. One-finger drag always works.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 
@@ -33,7 +13,6 @@ Item {
     implicitWidth: Theme.itemSizeLarge
     implicitHeight: Theme.itemSizeLarge
 
-    /* Ring */
     Rectangle {
         id: ring
         anchors.centerIn: parent
@@ -46,7 +25,6 @@ Item {
                                  Math.abs(root.roll) > 0.5 ? 0.85 : 0.4)
     }
 
-    /* Level mark at twelve o'clock — the reference the dot is read against. */
     Rectangle {
         width: 2
         height: ring.width * 0.16
@@ -58,9 +36,6 @@ Item {
         }
     }
 
-    /* The dot. Placed by rotating a container rather than by computing sin/cos
-     * per frame: one rotation binding is cheaper to read and cannot drift out of
-     * step with the ring. */
     Item {
         anchors.centerIn: ring
         width: ring.width
@@ -80,7 +55,6 @@ Item {
         }
     }
 
-    /* Angle, only when it is not zero. */
     Label {
         anchors.centerIn: ring
         visible: Math.abs(root.roll) > 0.5
@@ -91,7 +65,6 @@ Item {
         styleColor: Qt.rgba(0, 0, 0, 0.8)
     }
 
-    /* Hint that the middle is a button, once the angle is off level. */
     Rectangle {
         anchors.centerIn: ring
         width: ring.width * 0.5
@@ -107,9 +80,6 @@ Item {
         id: dial
         anchors.fill: ring
 
-        /* Inside this radius a press means "reset", outside it means "turn".
-         * Half the ring is a generous target for a thumb and still leaves a
-         * wide annulus to drag on. */
         readonly property real innerFraction: 0.5
         property bool turning: false
 
@@ -119,9 +89,7 @@ Item {
             return Math.sqrt(dx * dx + dy * dy) / (width / 2)
         }
 
-        /* Angle of the touch point measured from twelve o'clock, clockwise —
-         * the same convention the dot is drawn with, so the dot lands exactly
-         * under the finger. */
+        /* Clockwise from 12 o'clock, same convention as the dot. */
         function angleOf(x, y) {
             var dx = x - width / 2
             var dy = y - height / 2
@@ -135,8 +103,6 @@ Item {
         }
 
         onPositionChanged: {
-            /* A drag that started in the centre still turns the dial once it
-             * leaves it — otherwise a slightly off-centre grab feels dead. */
             if (!turning && radiusOf(mouse.x, mouse.y) >= innerFraction)
                 turning = true
             if (turning)

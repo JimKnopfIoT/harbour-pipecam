@@ -1,6 +1,4 @@
 /*
- * frameoverlay.cpp — see frameoverlay.h.
- *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
 #include "frameoverlay.h"
@@ -27,7 +25,6 @@ QImage rotateFit(const QImage &src, qreal degrees)
 
     const qreal w = src.width();
     const qreal h = src.height();
-    /* Bounding box of the rotated rectangle. */
     const qreal bw = w * c + h * s;
     const qreal bh = w * s + h * c;
     const qreal scale = qMin(w / bw, h / bh);
@@ -38,9 +35,7 @@ QImage rotateFit(const QImage &src, qreal degrees)
     QPainter p(&out);
     p.setRenderHint(QPainter::Antialiasing, true);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    /* Rotate about the centre of the canvas, then draw the source centred on
-     * the origin — the order matters, and doing it with translate/rotate rather
-     * than a hand-built QTransform keeps it readable. */
+    /* Order matters. */
     p.translate(w / 2.0, h / 2.0);
     p.rotate(degrees);
     p.scale(scale, scale);
@@ -69,9 +64,7 @@ void drawTimestamp(QImage *image, const QString &text)
     const int x = image->width() - box.width() - margin;
     const int y = image->height() - margin;
 
-    /* Cheap outline: the text offset in every direction in black, then the
-     * amber on top. Eight extra passes at this size cost nothing and avoid
-     * pulling in QPainterPath just to stroke some glyphs. */
+    /* Outline: 8 offset passes in black. */
     p.setPen(QColor(0, 0, 0, 220));
     for (int dx = -1; dx <= 1; ++dx)
         for (int dy = -1; dy <= 1; ++dy)

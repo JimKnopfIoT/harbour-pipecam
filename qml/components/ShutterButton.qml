@@ -1,13 +1,4 @@
-/*
- * ShutterButton.qml — the snapshot control.
- *
- * Deliberately large (itemSizeLarge) and centred: it is the one control that
- * gets used with wet gloves, one-handed, while the other hand feeds cable. The
- * classic two-ring camera shutter is used because it is instantly recognisable
- * and needs no label in any language.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 
@@ -17,7 +8,6 @@ MouseArea {
     width: Theme.itemSizeLarge
     height: width
 
-    /* A press should feel instant even before the file hits the disk. */
     property bool pressedDown: pressed && containsMouse
 
     Rectangle {

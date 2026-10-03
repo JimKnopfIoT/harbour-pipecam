@@ -1,17 +1,4 @@
-/*
- * DiagReportPage.qml — build, read, copy and save the diagnostic report.
- *
- * The report itself is assembled in C++ (src/diag/diagreport.h) and arrives
- * here already anonymised. This page only collects what QML alone knows — the
- * camera's state and the settings — and decides two things with the user:
- *
- *   * whether to run the claim test, which needs the live picture stopped for
- *     a moment so that the app's own hold on the camera is out of the way;
- *   * whether to use the root helper, which is a deliberate step behind a
- *     dialog that says what it reads.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 import harbour.pipecam 1.0
@@ -27,9 +14,7 @@ Page {
 
     DiagReport { id: diagReport }
 
-    /* Everything the report cannot read for itself. Flat keys, plain values:
-     * the C++ side prints them as they come. Taken BEFORE the claim test stops
-     * the camera, or every report would say "Off". */
+    /* Must run before the claim test stops the camera. */
     function appState() {
         var s = app.settings
         var info = app.camera.deviceInfo || {}
@@ -60,7 +45,7 @@ Page {
         busy = true
         report = ""
         savedPath = ""
-        /* Let the busy indicator paint before the blocking work starts. */
+        /* Lets the busy indicator paint before blocking work. */
         buildTimer.restart()
     }
 

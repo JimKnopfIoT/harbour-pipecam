@@ -1,6 +1,4 @@
 /*
- * capturestore.cpp — see capturestore.h.
- *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
 #include "capturestore.h"
@@ -21,12 +19,6 @@ static const char *STAMP_FORMAT = "yyyyMMdd-HHmmss";
 CaptureStore::CaptureStore(QObject *parent)
     : QAbstractListModel(parent)
 {
-    /* Photos AND videos both live in ~/Pictures/pipecam.
-     *
-     * Putting the recordings under Videos/ would be the conventional choice,
-     * but it splits one inspection across two folders — and everything the app
-     * produces belongs to the same job, gets reviewed together and gets copied
-     * off the phone together. One folder is what makes that a single drag. */
     const QString base =
             QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)
             + QLatin1Char('/') + QLatin1String(SUBDIR);
@@ -97,8 +89,7 @@ QString CaptureStore::makePath(const QString &dir, const QString &extension) con
     const QString base = dir + QLatin1Char('/') + QLatin1String(FILE_PREFIX) + stamp;
 
     QString candidate = base + QLatin1Char('.') + extension;
-    /* Second-resolution stamps collide easily (double-tap, button bounce), so
-     * disambiguate rather than silently overwriting a capture. */
+    /* never overwrite: -2, -3 ... suffix */
     int n = 2;
     while (QFile::exists(candidate) && n < 1000) {
         candidate = base + QLatin1Char('-') + QString::number(n) + QLatin1Char('.') + extension;
@@ -125,18 +116,12 @@ QString CaptureStore::saveSnapshot(UppCamera *camera, const QString &stampText,
 
     const QString path = makePath(m_pictureDir, QLatin1String("jpg"));
 
-    /* Two things force a re-encode: a burnt-in timestamp, and software
-     * brightness. Both change the pixels, and the camera's own JPEG has
-     * neither — saving the raw bytes with gain turned up would hand back a dark
-     * picture that looks nothing like what was on screen when the shutter was
-     * pressed. WYSIWYG wins over losslessness here; when neither is in use we
-     * still take the byte-exact path below. */
+    /* gain is software-only: raw bytes would not match the screen */
     const bool needsRender = !stampText.isEmpty()
                           || !qFuzzyIsNull(rotation)
                           || camera->gain() > 1.001;
 
     if (!needsRender) {
-        /* Fast path: the camera's bytes, unmodified. */
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly)) {
             emit error(tr("Cannot write %1: %2").arg(path, f.errorString()));
@@ -151,9 +136,7 @@ QString CaptureStore::saveSnapshot(UppCamera *camera, const QString &stampText,
             return QString();
         }
     } else {
-        /* Rendered path: start from the frame the worker already decoded (and
-         * already brightened) for display — no second JPEG decode — then
-         * re-encode once. */
+        /* display frame is already decoded and gain-applied */
         QImage image = camera->currentImage();
         if (image.isNull())
             image = QImage::fromData(jpeg, "JPEG");
@@ -161,11 +144,9 @@ QString CaptureStore::saveSnapshot(UppCamera *camera, const QString &stampText,
             emit error(tr("Could not decode the frame to add the timestamp."));
             return QString();
         }
-        /* fromData() can hand back a shared/read-only image; make sure we own
-         * the pixels before painting on them. */
+        /* detach: fromData() may return a shared/read-only image */
         image = image.convertToFormat(QImage::Format_RGB32);
-        /* Rotate first, stamp second, so the timestamp stays level and readable
-         * however far the picture has been turned. */
+        /* rotate before stamping so the stamp stays level */
         image = overlay::rotateFit(image, rotation);
         overlay::drawTimestamp(&image, stampText);
 
@@ -190,7 +171,7 @@ void CaptureStore::registerCapture(const QString &path)
 {
     if (path.isEmpty() || !QFile::exists(path))
         return;
-    /* A finished recording may already be listed if refresh() ran meanwhile. */
+    /* may already be listed via refresh() */
     for (int i = 0; i < m_items.count(); ++i) {
         if (m_items.at(i).path == path) {
             beginRemoveRows(QModelIndex(), i, i);
@@ -212,7 +193,6 @@ void CaptureStore::insertItem(const QString &path, bool announce)
     it.timestamp = fi.lastModified();
     it.sizeBytes = fi.size();
 
-    /* Newest first. */
     beginInsertRows(QModelIndex(), 0, 0);
     m_items.prepend(it);
     endInsertRows();
@@ -264,8 +244,6 @@ bool CaptureStore::rename(int index, const QString &newBaseName)
         emit error(tr("The name cannot be empty."));
         return false;
     }
-    /* Reject anything that would move the file somewhere else or produce a
-     * hidden file. Renaming is not a file manager. */
     if (wanted.contains(QLatin1Char('/')) || wanted.startsWith(QLatin1Char('.'))) {
         emit error(tr("A name cannot contain “/” or start with a dot."));
         return false;
@@ -276,7 +254,7 @@ bool CaptureStore::rename(int index, const QString &newBaseName)
                          + wanted + QLatin1Char('.') + fi.suffix();
 
     if (target == fi.absoluteFilePath())
-        return true;                       /* nothing to do */
+        return true;
 
     if (QFile::exists(target)) {
         emit error(tr("“%1” already exists.").arg(QFileInfo(target).fileName()));
@@ -292,8 +270,6 @@ bool CaptureStore::rename(int index, const QString &newBaseName)
     it.fileName = QFileInfo(target).fileName();
 
     const QModelIndex mi = this->index(index, 0);
-    /* Only the name-derived roles changed; size, type and timestamp are the
-     * same file. */
     QVector<int> roles;
     roles << PathRole << FileNameRole << UrlRole;
     emit dataChanged(mi, mi, roles);
@@ -317,17 +293,13 @@ void CaptureStore::refresh()
 
     QList<QFileInfo> found;
     found += QDir(m_pictureDir).entryInfoList(picFilter, QDir::Files);
-    /* Photos and videos currently share one folder. Scanning it twice would
-     * list every file twice, so only walk the video folder when it really is a
-     * different directory — this keeps working if they are ever split again. */
+    /* same dir: scan once per filter, else files are listed twice */
     if (m_videoDir == m_pictureDir)
         found += QDir(m_pictureDir).entryInfoList(vidFilter, QDir::Files);
     else
         found += QDir(m_videoDir).entryInfoList(vidFilter, QDir::Files);
 
-    /* Sort newest first across both folders. Insertion sort over a handful of
-     * hundreds of files is not worth optimising, and it keeps the comparison
-     * logic in one obvious place. */
+    /* newest first */
     for (int i = 0; i < found.count(); ++i) {
         const QFileInfo &fi = found.at(i);
         Item it;

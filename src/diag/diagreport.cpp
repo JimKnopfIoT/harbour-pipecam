@@ -1,6 +1,4 @@
 /*
- * diagreport.cpp — see diagreport.h.
- *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
 #include "diagreport.h"
@@ -35,7 +33,7 @@ QString DiagReport::appVersion()
     return QStringLiteral(PIPECAM_STR(PIPECAM_VERSION));
 }
 
-/* KEY=value files such as /etc/os-release, reduced to the keys asked for. */
+/* KEY=value files, e.g. /etc/os-release */
 static QString releaseField(const QString &file, const QString &key)
 {
     QFile f(file);
@@ -58,9 +56,7 @@ static QString orDash(const QString &s)
     return s.isEmpty() ? QStringLiteral("-") : s;
 }
 
-/* Process names that belong to Android App Support. The container runs as its
- * own users, but /proc/<pid>/comm is world readable, so no root is needed to
- * see that it is up. */
+/* Android App Support process names; /proc/<pid>/comm needs no root */
 static QString androidContainer()
 {
     QSet<QString> names;
@@ -109,8 +105,7 @@ QString DiagReport::build(const QVariantMap &appState, bool claimTest, bool useR
     QString raw;
     QTextStream o(&raw);
 
-    /* Read the descriptors first: the serial they contain has to be known to
-     * the redactor before anything is redacted. */
+    /* first: serials must reach the redactor before any redaction */
     const usbdump::Result usb = usbdump::dump(claimTest);
 
     Redactor red;
@@ -151,8 +146,7 @@ QString DiagReport::build(const QVariantMap &appState, bool claimTest, bool useR
       << " (" << orDash(releaseField(QStringLiteral("/etc/os-release"), QStringLiteral("VERSION_ID"))) << ")\n"
       << "Device:     " << orDash(releaseField(QStringLiteral("/etc/hw-release"), QStringLiteral("NAME")))
       << " [" << orDash(releaseField(QStringLiteral("/etc/hw-release"), QStringLiteral("MER_HA_DEVICE"))) << "]\n"
-      /* release and machine only — uname's version field names the kernel's
-       * build host and date. */
+      /* never u.version: contains build host */
       << "Kernel:     " << (haveUname ? QString::fromLatin1(u.release) : QStringLiteral("-"))
       << ' ' << (haveUname ? QString::fromLatin1(u.machine) : QString()) << '\n'
       << "App uid:    " << ::getuid() << ", groups:";
@@ -207,9 +201,7 @@ QString DiagReport::build(const QVariantMap &appState, bool claimTest, bool useR
     }
 
     o.flush();
-    /* The log sections are already redacted with IPv4 included; the rest
-     * gets the version-number-safe pass. Running text() twice over the log
-     * parts is harmless. */
+    /* logs already got log(); text() keeps version numbers intact */
     return red.text(raw);
 }
 

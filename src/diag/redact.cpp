@@ -1,6 +1,4 @@
 /*
- * redact.cpp — see redact.h.
- *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
 #include "redact.h"
@@ -16,12 +14,10 @@ Redactor::Redactor()
     if (::gethostname(host, sizeof(host) - 1) == 0)
         m_host = QString::fromLocal8Bit(host).trimmed();
 
-    /* Home first, then the bare user name, so "/home/<name>" becomes "~"
-     * rather than "/home/<user>". */
+    /* home before user name, so the home path becomes "~" */
     addSecret(QDir::homePath(), QStringLiteral("~"));
     const QString user = QDir::home().dirName();
-    /* "defaultuser" is the same on every Sailfish phone and says nothing;
-     * replacing it would only make paths harder to read. */
+    /* defaultuser is not identifying */
     if (user != QLatin1String("defaultuser"))
         addSecret(user, QStringLiteral("<user>"));
 }
@@ -35,7 +31,7 @@ void Redactor::addSecret(const QString &value, const QString &replacement)
         if (s.value == v)
             return;
     Secret s = { v, replacement };
-    /* Longest first, so a value that contains another is replaced whole. */
+    /* longest first */
     int i = 0;
     while (i < m_secrets.size() && m_secrets.at(i).value.size() >= v.size())
         ++i;
@@ -62,13 +58,11 @@ QString Redactor::text(const QString &in) const
         QStringLiteral("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"));
     out.replace(mail, QStringLiteral("<email>"));
 
-    /* IMEI and IMSI are 15 digits, ICCIDs 19-20. Nothing legitimate in this
-     * report is a 15+ digit run, so take all of them. */
+    /* IMEI/IMSI 15, ICCID 19-20 digits */
     static const QRegularExpression longNum(QStringLiteral("\\b\\d{15,20}\\b"));
     out.replace(longNum, QStringLiteral("<number>"));
 
-    /* USB serials of whatever device a log line happens to mention — the
-     * camera's own is already gone via addSecret(). */
+    /* serials of any other USB device */
     static const QRegularExpression usbSerial(
         QStringLiteral("(SerialNumber[:=]\\s*|iSerial\\s+\\d+\\s+)\\S.*$"),
         QRegularExpression::MultilineOption);

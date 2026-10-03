@@ -4,6 +4,4 @@ Description=PipeCam diagnostics helper (read-only, on demand)
 [Service]
 Type=simple
 ExecStart=/usr/bin/harbour-pipecam --root-helper
-# No [Install] section: never started at boot. The diagnostic report page
-# starts and stops it (see 50-harbour-pipecam.rules); without a connected
-# client it exits by itself after 20 seconds.
+# No [Install]: started on demand via polkit rule; exits after 20 s without client.
