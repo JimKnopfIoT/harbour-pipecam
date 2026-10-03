@@ -1,6 +1,4 @@
 /*
- * usbdump.cpp — see usbdump.h.
- *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
 #include "usbdump.h"
@@ -48,7 +46,7 @@ static bool isCamera(const libusb_device_descriptor &d)
     return false;
 }
 
-/* "1-1.2" — the device's directory under /sys/bus/usb/devices. */
+/* e.g. "1-1.2" under /sys/bus/usb/devices */
 static QString sysName(libusb_device *dev)
 {
     uint8_t ports[8];
@@ -138,8 +136,7 @@ static void dumpCamera(QTextStream &o, libusb_device *dev, const libusb_device_d
       << int(d.bNumConfigurations) << '\n'
       << "  iManufacturer " << int(d.iManufacturer) << ' ' << stringDesc(h, d.iManufacturer, 0) << '\n'
       << "  iProduct      " << int(d.iProduct) << ' ' << stringDesc(h, d.iProduct, 0) << '\n';
-    /* The serial is read only so it can be redacted out of every other line
-     * of the report too; it is never printed. */
+    /* read for redaction only; never printed */
     stringDesc(h, d.iSerialNumber, &r->serials);
     o << "  iSerial       " << int(d.iSerialNumber)
       << (d.iSerialNumber ? " <removed>" : "") << '\n';
@@ -172,9 +169,7 @@ static void dumpCamera(QTextStream &o, libusb_device *dev, const libusb_device_d
                       << ", bInterval " << int(ep.bInterval) << '\n';
                 }
             }
-            /* Who the kernel thinks owns this interface right now. "usbfs" is
-             * a libusb user (us, or someone else); anything else is a kernel
-             * driver that has to be detached before we can claim. */
+            /* "usbfs" = a libusb user */
             const QString ifDir = QStringLiteral("/sys/bus/usb/devices/%1:%2.%3")
                     .arg(sys).arg(cfg->bConfigurationValue).arg(itf.altsetting[0].bInterfaceNumber);
             const QFileInfo drv(ifDir + QStringLiteral("/driver"));
@@ -199,7 +194,6 @@ static void dumpCamera(QTextStream &o, libusb_device *dev, const libusb_device_d
           << (grc == 0 ? QString::number(cur) : QString::fromLatin1(libusb_error_name(grc))) << '\n';
     }
 
-    /* What the camera worker would make of this device — the same function. */
     upp::Variant variant = upp::VariantUnknown;
     {
         libusb_config_descriptor *cfg = 0;
@@ -211,8 +205,7 @@ static void dumpCamera(QTextStream &o, libusb_device *dev, const libusb_device_d
     }
 
     if (h && claimTest) {
-        /* The same steps the camera worker takes, reported one by one: the
-         * interfaces of the detected variant, or all of them if unknown. */
+        /* mirrors the camera worker's claim sequence */
         libusb_set_auto_detach_kernel_driver(h, 1);
         o << "Claim test (BUSY is expected if a PipeCam listed under holders streams):\n";
         int first = upp::IFACE_IAP, last = upp::IFACE_STREAM;
@@ -268,8 +261,7 @@ Result dump(bool claimTest)
         libusb_device_descriptor d;
         if (libusb_get_device_descriptor(list[i], &d) != 0)
             continue;
-        /* IDs and class only: other devices' strings could name things the
-         * user did not mean to share. */
+        /* IDs and class only: other devices' strings may identify the user */
         o << "  " << sysName(list[i]) << "  " << hex(d.idVendor, 4) << ':' << hex(d.idProduct, 4)
           << "  class " << hex(d.bDeviceClass, 2) << "  " << speedName(libusb_get_device_speed(list[i]))
           << (isCamera(d) ? "  <- camera" : "") << '\n';
@@ -293,9 +285,7 @@ Result dump(bool claimTest)
     return r;
 }
 
-/* usbN is a symlink into the controller's device directory; the driver that
- * matters (xhci, dwc3, ...) sits on the parent. Resolved physically, not
- * lexically — "usb1/.." would otherwise collapse to the devices directory. */
+/* driver sits on the parent; canonicalize first, "usbN/.." is lexical */
 static QString controllerDriver(const QString &rootHub)
 {
     const QString real = QFileInfo(rootHub).canonicalFilePath();
@@ -317,7 +307,7 @@ QString hostSide()
         o << "  none in /sys/class/typec\n";
     for (const QString &p : ports) {
         if (p.contains('-'))
-            continue;   /* port0-partner etc. are listed via their port */
+            continue;   /* portN-partner */
         const QString b = tc.absoluteFilePath(p);
         o << "  " << p << ": data_role " << readSys(b + "/data_role")
           << ", power_role " << readSys(b + "/power_role")
@@ -352,8 +342,7 @@ QString holders(const QStringList &nodes)
     QString s;
     QTextStream o(&s);
     int seen = 0;
-    /* readdir rather than QDir: QDir's type filters stat() the fd links, and
-     * that drops entries whose target is not a plain file. */
+    /* readdir, not QDir: QDir filters stat() fd links and drop device nodes */
     DIR *proc = ::opendir("/proc");
     while (proc) {
         struct dirent *pe = ::readdir(proc);
@@ -365,7 +354,7 @@ QString holders(const QStringList &nodes)
         const QByteArray fdDir = "/proc/" + QByteArray(pe->d_name) + "/fd";
         DIR *fd = ::opendir(fdDir.constData());
         if (!fd)
-            continue;   /* another user's process — needs root */
+            continue;   /* other user: needs root */
         while (struct dirent *fe = ::readdir(fd)) {
             if (fe->d_name[0] < '0' || fe->d_name[0] > '9')
                 continue;

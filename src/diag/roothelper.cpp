@@ -1,6 +1,5 @@
 /*
- * roothelper.cpp — see roothelper.h. Protocol: one command letter per line;
- * answer "OK <len>\n<payload>" or "ERR\n".
+ * Protocol: one command letter per line; answer "OK <len>\n<payload>" or "ERR\n".
  *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
@@ -48,8 +47,7 @@ bool isCameraId(const QByteArray &vid, const QByteArray &pid)
     return false;
 }
 
-/* The camera's device nodes, found here from sysfs — the client never names
- * a path. */
+/* from sysfs; the client never supplies a path */
 QStringList cameraNodes()
 {
     QStringList out;
@@ -108,8 +106,7 @@ QByteArray cmdHolders()
     return out;
 }
 
-/* /sys/kernel/debug/usb/devices: one block per device, separated by blank
- * lines. Keep the camera's blocks; their "I:" lines carry Driver=. */
+/* blank-line separated blocks; camera blocks only */
 QByteArray cmdUsbTable()
 {
     QFile f(QStringLiteral("/sys/kernel/debug/usb/devices"));
@@ -131,10 +128,7 @@ QByteArray cmdUsbTable()
     return out.isEmpty() ? QByteArray("no camera entry in debugfs usb/devices\n") : out;
 }
 
-/* Whole words only: a plain "usb" substring also matches the charger driver,
- * which logs "usb_unlimited:0 usbif:0" every ten seconds and would bury
- * everything else. "tcpm" and "type-c" are left out for the same reason — on
- * MediaTek phones the PD stack logs several lines a second under those. */
+/* whole words; no tcpm/type-c: charger and PD drivers flood the log */
 bool aboutUsb(const QByteArray &line)
 {
     static const QRegularExpression re(
@@ -179,8 +173,7 @@ QByteArray cmdKernelLog()
 QByteArray cmdJournal()
 {
     QProcess jp;
-    /* short-monotonic: seconds since boot rather than wall-clock — enough to
-     * order events, and one less thing that dates the report. */
+    /* monotonic: no wall-clock time in the report */
     jp.start(QStringLiteral("journalctl"),
              QStringList() << QStringLiteral("-b") << QStringLiteral("--no-pager")
                            << QStringLiteral("-n") << QStringLiteral("20000")
@@ -191,7 +184,7 @@ QByteArray cmdJournal()
     for (QByteArray l : jp.readAllStandardOutput().split('\n')) {
         if (!aboutUsb(l))
             continue;
-        /* "[ <seconds since boot>] host ident[pid]: msg" — the host column goes. */
+        /* drop host column: "[ <s>] host ident[pid]: msg" */
         const int close = l.indexOf("] ");
         if (l.startsWith('[') && close > 0) {
             const int sp = l.indexOf(' ', close + 2);
@@ -223,8 +216,7 @@ QByteArray cmdLsusb()
     return out.isEmpty() ? QByteArray("lsusb: no camera listed\n") : out;
 }
 
-/* Only root and the session user may talk to the helper. The socket's mode
- * says the same; this is checked again where a stray chmod cannot widen it. */
+/* root and defaultuser only; enforced here in addition to socket mode */
 bool peerAllowed(QLocalSocket *sock, uid_t *who)
 {
     struct ucred cr;
@@ -279,7 +271,7 @@ int rootHelperMain(int argc, char *argv[])
         fprintf(stderr, "pipecam helper: cannot listen on %s\n", qPrintable(path));
         return 1;
     }
-    /* root + defaultuser's primary group; peerAllowed() checks again. */
+    /* 0660 root:defaultuser group; peerAllowed() checks again */
     if (chown(QFile::encodeName(path).constData(), 0, DEFAULTUSER_UID) != 0 ||
         chmod(QFile::encodeName(path).constData(), 0660) != 0) {
         fprintf(stderr, "pipecam helper: cannot set socket permissions\n");
@@ -302,8 +294,7 @@ int rootHelperMain(int argc, char *argv[])
         }
     });
 
-    /* Runs only while the app uses it: 20 s grace for the first client, then
-     * gone as soon as nobody is connected. */
+    /* exit when idle; 20 s grace for the first client */
     QElapsedTimer up;
     up.start();
     QTimer idle;

@@ -1,31 +1,5 @@
-/*
- * ViewfinderPage.qml — the live view and the capture controls.
- *
- * LAYOUT
- * The picture is the app; everything else floats over it. The app is
- * landscape-locked, so the screen is short and wide, and the controls live in
- * two narrow columns down the left and right edges rather than in a bar along
- * the bottom, which would eat a third of the picture.
- *
- *   right : photo (top), video, gallery (bottom)  — the two capture buttons are
- *           the same size and sit together where the thumb rests
- *   left  : settings gear, level with the photo button, and the LED brightness
- *           bar below it
- *
- * They stay permanently visible: on a job you need to know without looking that
- * the shutter is where you left it.
- *
- * WHY THERE IS NO PULLEY MENU
- * There was one, and it could not be operated. The viewfinder needs a MouseArea
- * across the picture to drag the magnified image around, and that MouseArea
- * necessarily swallows the downward drag a PullDownMenu needs to open — the two
- * gestures are the same gesture. Rather than fight it with filtering rules that
- * would make both feel unreliable, the menu became the gear button on the left,
- * and the pan/zoom area is now anchored strictly BETWEEN the two control
- * columns, so it can never eat a press meant for a button.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
+/* No PullDownMenu: its gesture is the pan gesture. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 import harbour.pipecam 1.0
@@ -35,44 +9,15 @@ import "../components"
 Page {
     id: page
 
-    /* Landscape only — see the rationale in harbour-pipecam.qml. */
     allowedOrientations: Orientation.Landscape
 
-    /* ------------------------------------------------------------------ */
-    /* CAMERA CUTOUT (Jolla J2)                                            */
-    /* ------------------------------------------------------------------ */
-    /* Silica's default for a landscape page is CutoutMode.AvoidLandscapeCutout:
-     * the whole page is simply made narrower by the height of the notch, so a
-     * strip of the desktop background is left standing along the edge the
-     * camera sits in. Correct for a list, wrong for a viewfinder — this app is
-     * one picture filling the screen, and handing back a strip of it to show
-     * wallpaper is the one thing it must not do.
-     *
-     * So the page takes the whole screen, and the controls keep clear of the
-     * notch themselves. The picture underneath does not, on purpose: it is a
-     * picture, and at the default Fit zoom it is pillarboxed well inside the
-     * cutout anyway.
-     *
-     * WHICH EDGE THE NOTCH IS ON
-     * `Screen.topCutout` is given in portrait coordinates — on the J2 a 66 px
-     * high rectangle centred on the top edge. In Orientation.Landscape Silica
-     * rotates the page by +90°, which puts the portrait top edge on the page's
-     * LEFT — where this app's settings column already is, with the brightness
-     * bar running straight through the notch band. Hence a left inset only:
-     * Orientation.Landscape is the sole orientation this page can ever be in
-     * (see harbour-pipecam.qml — Landscape, not LandscapeMask), so the mirrored
-     * LandscapeInverted case cannot occur and is not carried here. On a phone
-     * without a cutout the rectangle is empty and this is zero, so nothing
-     * changes on any other device.
-     */
+    /* cutoutMode FullScreen; left column inset by Screen.topCutout.height:
+     * landscape page is rotated +90°, portrait top = page left. */
     cutoutMode: CutoutMode.FullScreen
 
     readonly property real cutoutInset:
         orientation === Orientation.Landscape ? Screen.topCutout.height : 0
 
-    /* ------------------------------------------------------------------ */
-    /* Live image                                                          */
-    /* ------------------------------------------------------------------ */
     Rectangle {
         anchors.fill: parent
         color: "black"
@@ -84,18 +29,12 @@ Page {
         camera: app.camera
         mirrored: app.settings.mirrored
         fillMode: app.settings.fillMode
-        /* In Fit mode the roll shrink already keeps the picture inside, but
-         * Fill and Stretch let a rolled frame overhang; clip so it never paints
-         * over the control columns. */
+        /* Fill/Stretch overhang the columns when rolled. */
         clip: true
-        /* Publish the roll upward so the recorder and the snapshot path can
-         * apply it too — see captureRoll in harbour-pipecam.qml. */
         onRollChanged: app.viewRoll = roll
         Component.onCompleted: roll = app.viewRoll
     }
 
-    /* Composition grid — thirds. Useful for judging whether the camera head is
-     * running centred in the pipe. */
     Item {
         anchors.fill: parent
         visible: app.settings.showGrid && viewfinder.hasFrame
@@ -118,9 +57,6 @@ Page {
         }
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Pinch to zoom, drag to pan — strictly between the two columns        */
-    /* ------------------------------------------------------------------ */
     PinchArea {
         id: pinchArea
         anchors {
@@ -129,18 +65,7 @@ Page {
             top: parent.top
             bottom: parent.bottom
         }
-        /* PINCH IS ZOOM ONLY — rotation is deliberately NOT handled here.
-         *
-         * It was, and it worked, but it fought the zoom: the two gestures share
-         * the same two fingers, and it is nearly impossible to change the scale
-         * without also twisting a few degrees, or to twist without nudging the
-         * scale. Every zoom left the picture slightly crooked. The roll dial in
-         * the left column does the job with one finger and cannot be triggered
-         * by accident, so the pinch keeps the single meaning it is good at.
-         *
-         * (Note that PinchArea reports no rotation at all unless
-         * pinch.minimumRotation/maximumRotation are set — leaving them out is
-         * what disables it, not an oversight.) */
+        /* Pinch is zoom only; rotation stays off while min/maxRotation are unset. */
         pinch.minimumScale: 1.0
         pinch.maximumScale: viewfinder.maxZoom
 
@@ -166,8 +91,6 @@ Page {
                     return
                 var dx = mouse.x - lastX
                 var dy = mouse.y - lastY
-                /* Ignore the first few pixels so a slightly sloppy tap stays a
-                 * tap and does not become a one-pixel pan. */
                 if (!dragging && Math.abs(dx) + Math.abs(dy) < 8)
                     return
                 dragging = true
@@ -177,9 +100,6 @@ Page {
             }
 
             onDoubleClicked: {
-                /* Cycle 1x → 2x → max → 1x, for when a pinch is awkward
-                 * one-handed. Returning to 1x recentres, since at 1x there is
-                 * nothing to pan to anyway. */
                 if (viewfinder.zoom >= viewfinder.maxZoom) {
                     viewfinder.zoom = 1.0
                     viewfinder.resetPan()
@@ -192,9 +112,6 @@ Page {
         }
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Placeholder while there is no picture                                */
-    /* ------------------------------------------------------------------ */
     StatusOverlay {
         anchors.horizontalCenter: pinchArea.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
@@ -203,9 +120,6 @@ Page {
         visible: !viewfinder.hasFrame
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Top status strip                                                    */
-    /* ------------------------------------------------------------------ */
     Item {
         id: topBar
         anchors { top: parent.top; left: leftBar.right; right: controlBar.left }
@@ -235,7 +149,6 @@ Page {
                 color: app.camera.streaming ? "#5FD35F"
                      : app.camera.status === PipeCamera.Error ? Theme.errorColor
                      : Theme.highlightColor
-                /* Pulse while searching, so "no camera" never looks frozen. */
                 SequentialAnimation on opacity {
                     running: !app.camera.streaming && app.camera.running
                     loops: Animation.Infinite
@@ -277,9 +190,6 @@ Page {
         }
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Recording indicator                                                 */
-    /* ------------------------------------------------------------------ */
     Rectangle {
         id: recIndicator
         visible: app.recorder.recording
@@ -326,9 +236,6 @@ Page {
         }
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Burnt-in timestamp, bottom right of the picture                     */
-    /* ------------------------------------------------------------------ */
     Label {
         visible: app.settings.showTimestamp
         anchors {
@@ -344,27 +251,13 @@ Page {
         styleColor: Qt.rgba(0, 0, 0, 0.85)
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Left column: settings + LED brightness                              */
-    /* ------------------------------------------------------------------ */
     Item {
         id: leftBar
         anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-        /* Same width as the right-hand column. It has to hold a roll dial big
-         * enough to grab and drag around, which the previous narrow strip was
-         * not — and a matching width also puts the picture back in the optical
-         * centre of the screen.
-         *
-         * Plus the camera cutout (see the note at the top of the page): the bar
-         * still reaches the screen edge so its dark fade covers the notch, but
-         * every control inside it is pushed clear of the cutout by the same
-         * amount. */
+        /* Spans the cutout; controls are offset by cutoutInset. */
         width: Theme.itemSizeLarge + 2 * Theme.paddingLarge + page.cutoutInset
 
-        /* Mirror of the right column's fade: vertical gradient in a rectangle
-         * with width and height swapped, rotated +90° so the dark end lands on
-         * the left. Gradient.orientation is Qt 5.12+ and Sailfish is on 5.6 —
-         * using it makes the whole page fail to load. */
+        /* Rotated vertical gradient: Gradient.orientation is Qt 5.12+, page fails to load on 5.6. */
         Rectangle {
             anchors.centerIn: parent
             width: parent.height
@@ -376,8 +269,6 @@ Page {
             }
         }
 
-        /* Gear in the corner, with the same gap to the top edge as to the left
-         * edge — a corner control should look like it sits in the corner. */
         IconButton {
             id: settingsButton
             anchors {
@@ -393,8 +284,6 @@ Page {
         GainSlider {
             id: gainSlider
             anchors {
-                /* Sits noticeably below the gear rather than right under it,
-                 * and stops short of the roll dial at the bottom. */
                 top: settingsButton.bottom
                 topMargin: Theme.itemSizeSmall
                 bottom: rollIndicator.top
@@ -422,15 +311,11 @@ Page {
             width: Theme.itemSizeLarge
             height: width
             roll: viewfinder.roll
-            /* Drag the ring to turn the picture, tap the middle to level it. */
             onRollRequested: viewfinder.roll = degrees
             onResetRequested: viewfinder.resetRoll()
         }
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Right column: photo, video, gallery                                 */
-    /* ------------------------------------------------------------------ */
     Item {
         id: controlBar
         anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
@@ -466,8 +351,6 @@ Page {
             anchors {
                 horizontalCenter: parent.horizontalCenter
                 top: shutter.bottom
-                /* Deliberately generous: these two do opposite things and get
-                 * hit without looking. */
                 topMargin: Theme.itemSizeSmall
             }
             recording: app.recorder.recording
@@ -475,7 +358,6 @@ Page {
             onClicked: app.toggleRecording()
         }
 
-        /* --- last capture, doubles as the way into the gallery --- */
         BackgroundItem {
             id: galleryButton
             width: Theme.itemSizeMedium
@@ -501,8 +383,6 @@ Page {
                     anchors.margins: 2
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
-                    /* Videos have no decodable thumbnail here, so fall back to
-                     * the icon rather than showing a broken image. */
                     source: app.captures.lastCapturePath !== "" &&
                             app.captures.lastCapturePath.indexOf(".mp4") < 0
                             ? "file://" + app.captures.lastCapturePath : ""
@@ -541,9 +421,6 @@ Page {
         return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Shutter flash + error feedback                                      */
-    /* ------------------------------------------------------------------ */
     Rectangle {
         id: flash
         anchors.fill: parent

@@ -1,13 +1,4 @@
-/*
- * AboutPage.qml — what the app is, what hardware it speaks to, and the licence.
- *
- * The hardware section is not decoration: these cameras are sold under a dozen
- * names with no documentation, so telling the user exactly which USB IDs are
- * supported is the fastest way for them to work out whether their cable will
- * ever work.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 import harbour.pipecam 1.0

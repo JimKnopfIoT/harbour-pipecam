@@ -1,21 +1,11 @@
-/*
- * RecordButton.qml — start / stop video recording.
- *
- * Deliberately the SAME SIZE as ShutterButton. These two are the controls that
- * get pressed without looking, and a size difference is the kind of thing you
- * only notice after you have started a recording when you wanted a photo. They
- * are distinguished by shape and colour instead: a red disc that becomes a red
- * square while recording — the universal record/stop affordance.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
+/* Same size as ShutterButton; distinguished by shape. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 
 MouseArea {
     id: root
 
-    /* Same footprint as ShutterButton. */
     width: Theme.itemSizeLarge
     height: width
 

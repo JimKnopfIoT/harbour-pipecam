@@ -1,14 +1,5 @@
-/*
- * RootConfirmDialog.qml — the one deliberate step before the root helper runs.
- *
- * Not an authentication: an unprivileged app cannot ask the device lock for
- * one on Sailfish, and the helper unit is startable by any process of this
- * user anyway (that is what the polkit rule says). What the dialog buys is
- * that nothing starts it silently, and that the user knows what it reads.
- * Same reasoning as harbour-sysmetrics.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
+/* Confirmation only, not authentication: polkit allows the unit for defaultuser. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 

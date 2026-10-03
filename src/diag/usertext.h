@@ -1,16 +1,8 @@
 /*
- * usertext.h — a message that is both shown to the user and logged.
- *
- * The UI wants the translation, the log wants English: a German log line in a
- * bug report is useless to most readers and cannot be searched for in the
- * source. So such a message carries both, built from the same source string.
- *
- * lupdate does not expand macros, so every call site marks its string itself:
- *
+ * Translated text for the UI, English source for the log.
+ * lupdate does not expand macros: mark strings with QT_TRANSLATE_NOOP at the
+ * call site; context must match the .ts context:
  *     UserText("Ctx", QT_TRANSLATE_NOOP("Ctx", "No camera %1.")).arg(n)
- *
- * The context must match the class whose translations are meant — that keeps
- * the existing entries in translations/*.ts valid.
  */
 #ifndef PIPECAM_USERTEXT_H
 #define PIPECAM_USERTEXT_H
@@ -20,8 +12,8 @@
 
 struct UserText
 {
-    QString ui;     /* translated, for the screen */
-    QString log;    /* English source, for the log */
+    QString ui;     /* translated */
+    QString log;    /* English source */
 
     UserText() {}
     UserText(const char *context, const char *source)
@@ -31,7 +23,7 @@ struct UserText
     UserText arg(int a) const { return both(ui.arg(a), log.arg(a)); }
     UserText arg(const QString &a) const { return both(ui.arg(a), log.arg(a)); }
 
-    /* Appended text is not translated: error codes, paths, library messages. */
+    /* appended text is not translated */
     UserText &operator+=(const QString &s) { ui += s; log += s; return *this; }
     UserText operator+(const QString &s) const { return both(ui + s, log + s); }
 

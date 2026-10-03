@@ -1,10 +1,3 @@
-/*
- * uppvariant.h — which firmware is this camera running?
- *
- * Shared by the camera worker, which picks the handshake from it, and the
- * diagnostic report, which states it — so a report always says what the app
- * would have done with the camera it describes.
- */
 #ifndef UPPVARIANT_H
 #define UPPVARIANT_H
 
@@ -16,13 +9,8 @@
 
 namespace upp {
 
-/* Decided from the configuration alone: the two variants share VID:PID and
- * descriptor strings, but not their layout.
- *
- * Interface 1 present -> the MJPEG protocol (it streams there). Exactly one
- * interface carrying bulk 0x82 IN and 0x02 OUT -> the YUYV variant. Anything
- * else is a third firmware nobody has described yet; refusing it with a clear
- * message beats sending it commands it does not understand. */
+/* Variants share VID:PID and strings; layout decides. iface 1 -> MJPEG;
+ * single iface with bulk 0x82 IN + 0x02 OUT -> YUYV; else Unknown (refuse). */
 inline Variant variantOf(const libusb_config_descriptor *cfg)
 {
     for (int i = 0; i < cfg->bNumInterfaces; ++i) {

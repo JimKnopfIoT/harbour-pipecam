@@ -1,8 +1,4 @@
-/*
- * LinkRow.qml — a tappable link: label above, URL below, opens in the browser.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 

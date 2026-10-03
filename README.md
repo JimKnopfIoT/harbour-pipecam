@@ -2,19 +2,12 @@
 
 # harbour-pipecam
 
-**Live view, snapshots and video recording for USB-C pipe inspection cameras on
-Sailfish OS.**
+Viewer and recorder for USB-C pipe inspection cameras on Sailfish OS.
 
-![The viewfinder, looking down a sink trap](media/viewfinder.png)
+![Viewfinder](media/viewfinder.png)
 
-These cheap endoscope cameras — sold as *USeePlus*, *Geek szitman* or
-*supercamera* — look like webcams but are not. They announce themselves as
-vendor-class USB devices, so no kernel driver binds them and **no `/dev/video`
-node ever appears**. Linux tools that expect a V4L2 camera simply cannot see
-them. PipeCam speaks their undocumented protocol directly over `libusb`.
-
-Everything runs on the device. There is no network code in this application at
-all: no telemetry, no cloud component, nothing to opt out of.
+- Vendor-class USB device, no kernel driver, no `/dev/video`. Spoken to directly via `libusb`.
+- No network code.
 
 ## Supported hardware
 
@@ -23,193 +16,89 @@ all: no telemetry, no cloud component, nothing to opt out of.
 | `2ce3:3828` | Geek szitman / supercamera / USeePlus |
 | `0329:2022` | same hardware, alternate ID |
 
-Two firmware variants share that ID and are told apart by their USB
-descriptor:
+| Variant | Descriptor | Stream | Cable button | Status |
+|---------|------------|--------|--------------|--------|
+| MJPEG | 2 interfaces (`bcdDevice 1.00`) | 640 × 480 MJPEG, 11–15 fps | yes | verified |
+| YUYV | 1 interface, bulk `0x82`/`0x02` (`bcdDevice 1.11`) | 320 × 240 YUYV | no | untested on hardware |
 
-| Variant | Descriptor | Picture |
-|---------|------------|---------|
-| MJPEG | two interfaces (`bcdDevice 1.00` seen) | 640 × 480 MJPEG, roughly 11–15 fps |
-| YUYV | one interface, bulk `0x82`/`0x02` (`bcdDevice 1.11` seen) | 320 × 240 raw YUYV |
+## Features
 
-The MJPEG variant is verified on real hardware. YUYV support follows two
-independent open-source implementations and a user's diagnostic report; the
-push-button is not available on it. A typical unit has a ~10 m cable with an
-inline push-button and a brightness dimmer wheel.
+- Live view, landscape, digital zoom to 8×, drag to pan
+- Roll dial: drag to rotate, tap centre to level
+- Software brightness gain to 3×
+- Snapshot: camera JPEG unchanged
+- Video: MJPEG track muxed into `.mp4`, no re-encode
+- Cable button: snapshot / record / off
+- Gallery: rename, delete; files in `~/Pictures/pipecam`
+- Optional burnt-in timestamp, thirds grid
+- Timestamp, gain or capture rotation on → frames re-encoded
 
-## What it does
-
-- **Live view**, landscape-locked, with digital zoom to 8× and one-finger drag
-  to pan the magnified image.
-- **Roll dial** — a camera head sliding down a pipe twists as it goes; drag the
-  dial to turn the picture back upright, tap its centre to level it.
-- **Brightness** — a software gain, because the LED ring cannot be driven from
-  the phone (see below) and pipes are dark.
-- **Snapshots** written as the camera's own untouched JPEG — no decode, no
-  re-encode, no generational loss.
-- **Video** muxed straight into `.mp4` as an MJPEG track. Also no re-encoding:
-  the camera already produces JPEGs and the muxer takes them as they are.
-- **The button on the cable** takes a snapshot, toggles recording, or does
-  nothing — your choice. Ten metres in, it is the only control you can reach.
-- **Gallery** with rename and delete. Captures land in `~/Pictures/pipecam`.
-- Optional burnt-in date and time, and a thirds grid.
-
-Snapshots and recordings are byte-exact copies of what the camera sent — unless
-the timestamp or the brightness gain is switched on. Those change pixels, so
-each frame is drawn on and re-encoded before it is written. That is the right
-trade for inspection footage: a recording with no date on it is much harder to
-use as documentation months later than one that has been through a single extra
-JPEG generation.
-
-## See it working
-
-Straight off the phone, recorded with the app itself.
-
-| Going down a sink trap | Turning the picture upright |
+| Sink trap | Roll dial during recording |
 |---|---|
-| ![Going down a sink trap](media/dive-into-siphon.gif) | ![Rotating the picture](media/rotating-the-view.gif) |
-| past the strainer, into the deposits | the roll dial, mid-recording, at ¾ speed |
+| ![Sink trap](media/dive-into-siphon.gif) | ![Roll dial](media/rotating-the-view.gif) |
 
-The right-hand one shows the part that is easy to miss. The picture turns, the
-frame is scaled down so nothing is cut off — hence the black corners — and the
-burnt-in timestamp stays level and readable throughout, because the frame is
-rotated first and stamped second.
-
-> These two animations have been **heavily reduced to keep the repository
-> small**: 420 pixels wide instead of 640, 8 frames per second instead of about
-> 15, five seconds instead of ten, and 128 colours. They are noticeably softer
-> and coarser than what the app actually shows. The real output is a 640×480
-> MJPEG recording in which the timestamp is crisp and the detail is as good as
-> the sensor allows — judge the picture quality from the still images above, not
-> from these.
+GIFs reduced: 420 px, 8 fps, 128 colours. Actual output: 640 × 480 MJPEG.
 
 <p align="center">
-  <img src="media/siphon.jpg" width="45%" alt="A snapshot with the timestamp burnt in">
-  <img src="media/cover.png" width="24%" alt="The cover tile while the app runs in the background">
+  <img src="media/siphon.jpg" width="45%" alt="Snapshot with timestamp">
+  <img src="media/cover.png" width="24%" alt="Cover">
 </p>
 
-A snapshot with the date burnt in, and the cover tile — which reports whether
-frames are still arriving and how long a recording has been running, and offers
-shutter and record without opening the app.
+## Protocol (MJPEG variant)
 
-## Protocol
-
-The camera is undocumented. This is what the protocol looks like, verified
-against real hardware; `src/camera/uppprotocol.h` carries the full description.
-
-Two commands are known:
+Full description: `src/camera/uppprotocol.h`.
 
 ```
-FF 55 FF 55 EE 10     initialise      -> control interface, bulk OUT 0x02
-BB AA 05 00 00        connect         -> stream interface, bulk OUT 0x01
+FF 55 FF 55 EE 10     init     -> bulk OUT 0x02
+BB AA 05 00 00        connect  -> bulk OUT 0x01
 ```
 
-The stream then arrives on bulk IN `0x81` as 1024-byte packets:
+Stream on bulk IN `0x81`, 1024-byte packets:
 
 ```
 [5-byte USB header][7-byte camera header][JPEG slice]
   magic 0xBBAA, camera id, length      frame id, cam_num, flags, 32-bit field
 ```
 
-**Frames are delimited by the frame-id byte changing — never by scanning for
-JPEG `FFD8`/`FFD9` markers.** The device coalesces many packets into one bulk
-transfer and every packet carries its own 12-byte header; stripping only the
-leading one leaves the rest embedded in the JPEG entropy data. That produces a
-corrupt image and a premature end-of-image, which is the well-known "half-grey
-picture" failure.
-
-Three things measured here differ from earlier published descriptions of this
-device:
-
-- **Camera id is always 7.** It is documented elsewhere as 7 *and* 11, described
-  as two halves of one frame. Id 7 alone yields complete images and id 11 never
-  appears at all, so the two ids are more likely two cameras — the second of
-  which this unit does not emit.
-- **`cam_num` is a frame toggle**, alternating 0/1 with every frame. Splitting
-  the stream by it produces two sequences that show the same scene a fraction of
-  a second apart, not two viewpoints.
-- **The 32-bit field is not a g-sensor.** On a motionless cable it cycles
-  strictly through four fixed values.
-
-## Lighting
-
-The LED ring **cannot be controlled from the phone**, and that is a measured
-result rather than a missing feature: 60 seconds of capture while the dimmer
-wheel was turned through its full range produced no change in any header field
-and not one byte on the control endpoint — while a button press during the same
-run appeared immediately. The wheel is an analogue potentiometer in the LED
-supply that the firmware never sees.
-
-The brightness control in the app therefore brightens the picture, not the lamp.
+- Frame boundary = frame-id change. Not `FFD8`/`FFD9`: every packet in a bulk transfer has its own 12-byte header.
+- Camera id: always 7. Id 11 never seen.
+- `cam_num`: toggles 0/1 per frame.
+- 32-bit field: cycles through four fixed values on a static cable; not a g-sensor.
+- LED ring: analogue dimmer, not visible to the firmware. Not controllable.
 
 ## USB permissions
 
-The camera's raw USB node is `root:usb 0660` and the application user is not in
-the `usb` group, so the package ships a udev rule scoped to these two USB IDs.
+- udev rule for both IDs, `0666`. Prefix `999-`: `999-android-system.rules` resets all USB nodes to `0660 root:usb`; last match wins.
+- `.desktop`: `Sandboxing=Disabled`. No Sailjail permission grants raw USB; without the key the default profile still applies (PID namespace, no-new-privileges, seccomp).
 
-Its filename begins with `999-` on purpose. Sailfish on Android-based hardware
-ships `999-android-system.rules` containing a catch-all that resets **every** USB
-node to `0660 root:usb`, and udev applies files in filename order with the last
-assignment winning — a `99-` prefixed rule is silently overwritten.
+## Diagnostic report
 
-The `.desktop` file also says `Sandboxing=Disabled`, deliberately: no stock
-sandbox permission grants raw USB access. Leaving the `[X-Sailjail]` section
-out is not the same thing — on Sailfish OS 5.x such an app is started in the
-default sandbox (own PID namespace, no-new-privileges, seccomp).
+Settings → About → **Create diagnostic report**, or `harbour-pipecam --report [--root]`.
 
-## Reporting a problem
+- Contents: versions, OS, phone model, USB descriptor tree, detected variant, interface drivers, node permissions, Type-C role, claim test, app log.
+- Removed on the device: serial numbers, host name, user name, home directory, MAC/IP/e-mail addresses, IMEI-length numbers.
+- **Verbose log**: adds libusb messages; written to `~/.cache/harbour-pipecam/pipecam.log`, kept across a crash.
+- **Include root data**: read-only `harbour-pipecam-helper.service` (polkit-scoped, not started at boot, exits when unused): holders of the camera node, kernel USB table, kernel and journal lines about USB.
 
-Settings → About → **Create diagnostic report** collects everything needed to
-debug a camera that is found but will not start: app and library versions, the
-Sailfish OS release and phone model, the camera's complete USB descriptor tree
-(what `lsusb -v` would print), which kernel driver owns each interface, the
-device node's permissions, the Type-C port role, an optional claim test, and the
-app's own log. Switch on **Verbose log** first to include libusb's messages; it
-is also written to `~/.cache/harbour-pipecam/pipecam.log` and survives a crash.
-
-The report is anonymised on the phone before you see it — serial numbers, host
-name, user name, home directory, MAC/IP/e-mail addresses and IMEI-length
-numbers are removed — and is formatted to be pasted into an
-[issue](https://github.com/JimKnopfIoT/harbour-pipecam/issues) as it is.
-
-**Include root data** adds the kernel's view through a small read-only helper
-(`harbour-pipecam-helper.service`): which process of any user holds the camera,
-the kernel's USB table entry, and kernel-log and journal lines about USB. A
-polkit rule lets the phone's user start and stop exactly that unit; it is never
-started at boot and exits by itself when the app no longer uses it.
-
-From a terminal: `harbour-pipecam --report` (add `--root` for the helper part).
+Issues: <https://github.com/JimKnopfIoT/harbour-pipecam/issues>
 
 ## Building
 
-Requires the [Sailfish OS SDK](https://sailfishos.org/develop/).
+[Sailfish OS SDK](https://sailfishos.org/develop/):
 
 ```sh
-mb2 -t SailfishOS-<version>-aarch64 build     # produces an RPM under RPMS/
-```
-
-Install on the device:
-
-```sh
+mb2 -t SailfishOS-<version>-aarch64 build
 scp RPMS/harbour-pipecam-*.aarch64.rpm <device>:/tmp/
 ssh <device> 'pkcon install-local -y /tmp/harbour-pipecam-*.aarch64.rpm'
 ```
 
-Replug the camera afterwards, or run `udevadm trigger --subsystem-match=usb`, so
-the new rule applies to a device that was already connected.
+Then replug the camera or run `udevadm trigger --subsystem-match=usb`.
 
 ## Acknowledgements
 
-The protocol was reconstructed with reference to prior reverse-engineering work
-on this camera family, in particular the `ProbeView` project and the community
-Linux drivers for the same devices. The YUYV variant's handshake and frame
-layout follow [Endoscope_Viewer](https://github.com/Bognabon/Endoscope_Viewer)
-and [supercamera-yuyv-linux](https://github.com/KlumpRasmus/supercamera-yuyv-linux).
-
-## Status
-
-Working, and used on real hardware, but young. Shared **as is** with **no
-warranty** of any kind — see the [GPLv3](LICENSE).
+- MJPEG protocol: `ProbeView` and community Linux drivers for this camera family
+- YUYV variant: [Endoscope_Viewer](https://github.com/Bognabon/Endoscope_Viewer), [supercamera-yuyv-linux](https://github.com/KlumpRasmus/supercamera-yuyv-linux)
 
 ## Licence
 
-**GNU General Public License v3.0 or later.**
+GPL-3.0-or-later, no warranty. See [LICENSE](LICENSE).

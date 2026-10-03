@@ -1,18 +1,4 @@
-/*
- * CoverPage.qml — the tile shown while the app runs in the background.
- *
- * The background is qml/images/cover-logo.png: a hard zoom into the app icon's
- * lens and inner rings, generated from icons/icon.svg by the icon build step described in README.md.
- * The full icon has five rings and would turn to mush at cover size; the crop
- * keeps the same motif instantly recognisable while leaving room for the state
- * on top of it.
- *
- * The cover earns its place by being useful, not decorative: it shows whether
- * frames are still arriving and how long a recording has been running, and its
- * two actions are the two things worth doing without opening the app.
- *
- * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
- */
+/* Copyright (C) 2026  JimKnopfIoT — GPLv3 or later. */
 import QtQuick 2.6
 import Sailfish.Silica 1.0
 
@@ -23,13 +9,10 @@ CoverBackground {
         anchors.fill: parent
         source: Qt.resolvedUrl("../images/cover-logo.png")
         fillMode: Image.PreserveAspectCrop
-        /* Dimmed hard: this is a backdrop, and the text has to win. */
         opacity: 0.38
         asynchronous: true
     }
 
-    /* Darken towards the bottom so the status block always has contrast,
-     * whatever part of the artwork ends up behind it. */
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
@@ -100,8 +83,7 @@ CoverBackground {
             visible: app.captures.count > 0 && !app.recorder.recording
             font.pixelSize: Theme.fontSizeExtraSmall
             color: Theme.lightSecondaryColor
-            /* No //% id comment here: that syntax belongs to qsTrId(), and
-             * lupdate warns and ignores it when it sits above a qsTr(). */
+            /* No //% id: qsTrId syntax, lupdate ignores it above qsTr(). */
             text: qsTr("%n capture(s)", "", app.captures.count)
         }
     }
@@ -114,8 +96,7 @@ CoverBackground {
             onTriggered: app.takeSnapshot()
         }
         CoverAction {
-            /* No stock "stop recording" cover icon exists, so reuse the pause
-             * glyph for the running state — it reads as "end this". */
+            /* No stock stop icon; pause glyph while recording. */
             iconSource: app.recorder.recording ? "image://theme/icon-cover-pause"
                                                : "image://theme/icon-cover-new"
             onTriggered: app.toggleRecording()

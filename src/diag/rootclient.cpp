@@ -1,6 +1,4 @@
 /*
- * rootclient.cpp — see rootclient.h.
- *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
 #include "rootclient.h"
@@ -18,8 +16,7 @@ RootClient *RootClient::instance()
 
 QString RootClient::socketPath()
 {
-    /* Under /run, not /tmp: only root can create it there, so the app cannot
-     * be handed a look-alike socket by another local process. */
+    /* /run, not /tmp: only root can create it, no spoofed socket */
     return QStringLiteral("/run/harbour-pipecam-helper.sock");
 }
 
@@ -28,7 +25,6 @@ RootClient::RootClient(QObject *parent)
     , m_wanted(false)
 {
     connect(&m_sock, &QLocalSocket::stateChanged, this, &RootClient::activeChanged);
-    /* The unit takes a moment to come up; keep knocking while it is wanted. */
     m_retry.setInterval(1000);
     connect(&m_retry, &QTimer::timeout, this, [this]() {
         if (!m_wanted) {

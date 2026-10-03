@@ -1,6 +1,4 @@
-// harbour-pipecam: defaultuser may start and stop exactly
-// harbour-pipecam-helper.service — the read-only diagnostics helper behind
-// the app's diagnostic report — and nothing else.
+// defaultuser may start/stop harbour-pipecam-helper.service only.
 polkit.addRule(function(action, subject) {
     if (action.id == "org.freedesktop.systemd1.manage-units" &&
         action.lookup("unit") == "harbour-pipecam-helper.service" &&

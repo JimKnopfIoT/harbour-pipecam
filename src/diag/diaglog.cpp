@@ -1,6 +1,4 @@
 /*
- * diaglog.cpp — see diaglog.h.
- *
  * Copyright (C) 2026  JimKnopfIoT — GPLv3 or later.
  */
 #include "diaglog.h"
@@ -9,10 +7,7 @@
 #include <QDir>
 #include <QMutexLocker>
 
-/* Enough for a few minutes of verbose trace including a failed handshake loop
- * retrying once a second, small enough to show on one page. */
 static const int MAX_LINES = 3000;
-/* The file is for "what happened before the crash", not an archive. */
 static const qint64 MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 QAtomicInt DiagLog::s_verbose(0);
@@ -33,8 +28,7 @@ DiagLog::DiagLog(QObject *parent)
     : QObject(parent)
     , m_fileBytes(0)
 {
-    /* Keep the last run's file before this run can overwrite it. It exists
-     * only if verbose was on last time, which is exactly when it is wanted. */
+    /* rotate before this run writes */
     QDir().mkpath(cacheDir());
     const QString cur = cacheDir() + QStringLiteral("/pipecam.log");
     const QString prev = cacheDir() + QStringLiteral("/pipecam.prev.log");
@@ -44,7 +38,7 @@ DiagLog::DiagLog(QObject *parent)
     }
     QFile p(prev);
     if (p.open(QIODevice::ReadOnly)) {
-        /* Only the tail matters: the end of a run is where it went wrong. */
+        /* tail only */
         if (p.size() > 256 * 1024)
             p.seek(p.size() - 256 * 1024);
         m_previousRun = QString::fromUtf8(p.readAll());
@@ -106,8 +100,7 @@ void DiagLog::openFile()
     m_file.setFileName(logFile());
     if (m_file.open(QIODevice::WriteOnly | QIODevice::Append)) {
         m_fileBytes = m_file.size();
-        /* What was logged before verbose was switched on belongs in the file
-         * too: it is usually the start of the story. */
+        /* backfill lines logged before verbose was on */
         for (const QString &l : m_lines) {
             const QByteArray b = l.toUtf8() + '\n';
             m_file.write(b);
@@ -131,8 +124,7 @@ void DiagLog::append(const QString &line)
         m_fileBytes += b.size();
         if (m_fileBytes >= MAX_FILE_BYTES)
             m_file.write("diag: log file full, further lines kept in memory only\n");
-        /* Flushed per line on purpose: the file exists for the run that does
-         * not end cleanly. */
+        /* flush per line: must survive a crash */
         m_file.flush();
     }
 }
