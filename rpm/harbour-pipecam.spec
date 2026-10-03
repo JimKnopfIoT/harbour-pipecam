@@ -1,7 +1,7 @@
 # Neutral packaging metadata — no personal identifiers (see CLAUDE.md anonymity rules).
 Name:       harbour-pipecam
 Summary:    Viewer and recorder for USB pipe inspection cameras
-Version:    0.1.2
+Version:    0.1.3
 Release:    1
 # ANONYMITY: neutral build host so built RPMs carry no real hostname/domain.
 # Without this, the RPM BUILDHOST tag leaks the build machine's name and LAN
@@ -86,6 +86,15 @@ fi
 %{_datadir}/polkit-1/rules.d/50-harbour-pipecam.rules
 
 %changelog
+* Sat Oct 03 2026 harbour-pipecam contributors 0.1.3-1
+- Support for the single-interface variant of the camera (bcdDevice 1.11,
+  raw 320x240 YUYV instead of MJPEG), detected from its USB descriptor.
+  Thanks to the reporters on OpenRepos and GitHub (#1).
+- An unknown variant is named as such instead of failing with a USB error.
+- Diagnostic report states the detected variant; its claim test only tries
+  the interfaces that variant uses.
+- The log is always in English, whatever the UI language.
+
 * Fri Oct 02 2026 harbour-pipecam contributors 0.1.2-1
 - Diagnostic report (Settings -> About): app, system and full USB details of
   the camera, anonymised so it can be posted as it is. Optional root helper

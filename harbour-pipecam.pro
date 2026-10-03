@@ -59,11 +59,13 @@ HEADERS += \
     src/camera/mjpegrecorder.h \
     src/camera/uppcamera.h \
     src/camera/uppprotocol.h \
+    src/camera/uppvariant.h \
     src/camera/videoframeitem.h \
     src/diag/diaglog.h \
     src/diag/diagreport.h \
     src/diag/redact.h \
     src/diag/rootclient.h \
+    src/diag/usertext.h \
     src/diag/roothelper.h \
     src/diag/usbdump.h
 

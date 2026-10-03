@@ -392,49 +392,58 @@ Diese Kameras sind keine UVC-Geräte. Deshalb bindet kein Kerneltreiber sie, und
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="167"/>
+        <location filename="../src/camera/uppcamera.cpp" line="170"/>
         <source>Camera found but not accessible. The USB permission rule is missing — reinstall the app and replug the camera.</source>
         <translation>Kamera gefunden, aber nicht zugreifbar. Die USB-Berechtigungsregel fehlt — App neu installieren und Kamera aus- und wieder einstecken.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="171"/>
+        <location filename="../src/camera/uppcamera.cpp" line="174"/>
         <source>No camera detected. Check the USB-C connection.</source>
         <translation>Keine Kamera erkannt. USB-C-Verbindung prüfen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="281"/>
+        <location filename="../src/camera/uppcamera.cpp" line="311"/>
+        <location filename="../src/camera/uppcamera.cpp" line="399"/>
         <source>Not allowed to open the camera (USB permissions).</source>
         <translation>Keine Berechtigung, die Kamera zu öffnen (USB-Rechte).</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="284"/>
+        <location filename="../src/camera/uppcamera.cpp" line="314"/>
+        <location filename="../src/camera/uppcamera.cpp" line="401"/>
         <source>Camera is in use by another program or driver (interface %1). Close other camera apps, or unplug and replug it.</source>
         <translation>Kamera wird von einem anderen Programm oder Treiber benutzt (Interface %1). Andere Kamera-Apps schließen oder Kamera aus- und wieder einstecken.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="289"/>
+        <location filename="../src/camera/uppcamera.cpp" line="322"/>
         <source>This camera has no interface %1 — an unknown variant. Please send a diagnostic report (Settings → About).</source>
         <translation>Diese Kamera hat kein Interface %1 — eine unbekannte Variante. Bitte einen Diagnosebericht schicken (Einstellungen → Über).</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="294"/>
+        <location filename="../src/camera/uppcamera.cpp" line="327"/>
+        <location filename="../src/camera/uppcamera.cpp" line="405"/>
         <source>Could not take over the camera&apos;s USB interface %1.</source>
         <translation>Das USB-Interface %1 der Kamera konnte nicht übernommen werden.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="321"/>
+        <location filename="../src/camera/uppcamera.cpp" line="354"/>
         <source>Could not start the camera&apos;s video interface.</source>
         <translation>Das Video-Interface der Kamera konnte nicht gestartet werden.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="333"/>
+        <location filename="../src/camera/uppcamera.cpp" line="366"/>
+        <location filename="../src/camera/uppcamera.cpp" line="430"/>
         <source>Camera did not accept the initialisation command.</source>
         <translation>Die Kamera hat den Initialisierungsbefehl nicht angenommen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="342"/>
+        <location filename="../src/camera/uppcamera.cpp" line="375"/>
         <source>Camera did not accept the connect command.</source>
         <translation>Die Kamera hat den Verbindungsbefehl nicht angenommen.</translation>
+    </message>
+    <message>
+        <location filename="../src/camera/uppcamera.cpp" line="666"/>
+        <source>Unknown camera variant: its USB layout matches no known protocol. Please send a diagnostic report (Settings → About).</source>
+        <translation>Unbekannte Kameravariante: Ihr USB-Aufbau passt zu keinem bekannten Protokoll. Bitte einen Diagnosebericht schicken (Einstellungen → Über).</translation>
     </message>
 </context>
 <context>
@@ -894,27 +903,27 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCamera</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="547"/>
+        <location filename="../src/camera/uppcamera.cpp" line="760"/>
         <source>Off</source>
         <translation>Aus</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="548"/>
+        <location filename="../src/camera/uppcamera.cpp" line="761"/>
         <source>Looking for camera…</source>
         <translation>Suche Kamera…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="549"/>
+        <location filename="../src/camera/uppcamera.cpp" line="762"/>
         <source>Connecting…</source>
         <translation>Verbinde…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="550"/>
+        <location filename="../src/camera/uppcamera.cpp" line="763"/>
         <source>Live</source>
         <translation>Live</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="551"/>
+        <location filename="../src/camera/uppcamera.cpp" line="764"/>
         <source>Problem</source>
         <translation>Problem</translation>
     </message>
@@ -922,7 +931,7 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCameraWorker</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="431"/>
+        <location filename="../src/camera/uppcamera.cpp" line="627"/>
         <source>USB subsystem unavailable.</source>
         <translation>USB-Subsystem nicht verfügbar.</translation>
     </message>
