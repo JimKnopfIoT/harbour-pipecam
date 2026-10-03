@@ -108,7 +108,7 @@ Page {
 
             DetailItem { label: qsTr("Resolution"); value: app.camera.frameWidth
                                                           + " × " + app.camera.frameHeight }
-            DetailItem { label: qsTr("Format");     value: "MJPEG" }
+            DetailItem { label: qsTr("Format");     value: app.camera.deviceInfo.format || "MJPEG" }
             DetailItem {
                 label: qsTr("Frame rate now")
                 value: app.camera.streaming ? app.camera.fps.toFixed(1) + " fps"

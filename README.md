@@ -23,7 +23,17 @@ all: no telemetry, no cloud component, nothing to opt out of.
 | `2ce3:3828` | Geek szitman / supercamera / USeePlus |
 | `0329:2022` | same hardware, alternate ID |
 
-640 × 480, MJPEG, roughly 11–15 fps. A typical unit has a ~10 m cable with an
+Two firmware variants share that ID and are told apart by their USB
+descriptor:
+
+| Variant | Descriptor | Picture |
+|---------|------------|---------|
+| MJPEG | two interfaces (`bcdDevice 1.00` seen) | 640 × 480 MJPEG, roughly 11–15 fps |
+| YUYV | one interface, bulk `0x82`/`0x02` (`bcdDevice 1.11` seen) | 320 × 240 raw YUYV |
+
+The MJPEG variant is verified on real hardware. YUYV support follows two
+independent open-source implementations and a user's diagnostic report; the
+push-button is not available on it. A typical unit has a ~10 m cable with an
 inline push-button and a brightness dimmer wheel.
 
 ## What it does
@@ -191,7 +201,9 @@ the new rule applies to a device that was already connected.
 
 The protocol was reconstructed with reference to prior reverse-engineering work
 on this camera family, in particular the `ProbeView` project and the community
-Linux drivers for the same devices.
+Linux drivers for the same devices. The YUYV variant's handshake and frame
+layout follow [Endoscope_Viewer](https://github.com/Bognabon/Endoscope_Viewer)
+and [supercamera-yuyv-linux](https://github.com/KlumpRasmus/supercamera-yuyv-linux).
 
 ## Status
 

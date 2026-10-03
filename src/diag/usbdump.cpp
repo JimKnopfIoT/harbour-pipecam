@@ -5,6 +5,7 @@
  */
 #include "usbdump.h"
 #include "uppprotocol.h"
+#include "uppvariant.h"
 
 #include <libusb-1.0/libusb.h>
 
@@ -198,11 +199,26 @@ static void dumpCamera(QTextStream &o, libusb_device *dev, const libusb_device_d
           << (grc == 0 ? QString::number(cur) : QString::fromLatin1(libusb_error_name(grc))) << '\n';
     }
 
+    /* What the camera worker would make of this device — the same function. */
+    upp::Variant variant = upp::VariantUnknown;
+    {
+        libusb_config_descriptor *cfg = 0;
+        if (libusb_get_active_config_descriptor(dev, &cfg) == 0 && cfg) {
+            variant = upp::variantOf(cfg);
+            libusb_free_config_descriptor(cfg);
+        }
+        o << "  variant: " << upp::variantName(variant) << '\n';
+    }
+
     if (h && claimTest) {
-        /* The same steps the camera worker takes, reported one by one. */
+        /* The same steps the camera worker takes, reported one by one: the
+         * interfaces of the detected variant, or all of them if unknown. */
         libusb_set_auto_detach_kernel_driver(h, 1);
         o << "Claim test (BUSY is expected if a PipeCam listed under holders streams):\n";
-        for (int iface = upp::IFACE_IAP; iface <= upp::IFACE_STREAM; ++iface) {
+        int first = upp::IFACE_IAP, last = upp::IFACE_STREAM;
+        if (variant == upp::VariantYuyv)
+            first = last = upp::yuyv::IFACE;
+        for (int iface = first; iface <= last; ++iface) {
             const int rc = libusb_claim_interface(h, iface);
             o << "  claim interface " << iface << ": "
               << (rc == 0 ? QStringLiteral("ok") : QString::fromLatin1(libusb_error_name(rc))) << '\n';

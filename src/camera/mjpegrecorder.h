@@ -54,6 +54,8 @@
 #include <QObject>
 #include <QString>
 
+#include "usertext.h"
+
 typedef struct _GstElement GstElement;
 
 class UppCamera;
@@ -151,7 +153,7 @@ private slots:
 
 private:
     void teardown();
-    void setError(const QString &err);
+    void setError(const UserText &err);
     /* Non-blocking bus check, run while frames are flowing. */
     void pollBus();
 

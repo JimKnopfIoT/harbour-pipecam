@@ -27,6 +27,11 @@
  * (see MjpegRecorder). Re-encoding a decoded QImage would cost CPU and quality
  * for nothing.
  *
+ * The one exception is the single-interface variant (uppprotocol.h), which
+ * sends uncompressed YUYV. The worker encodes each of its frames to JPEG once,
+ * so everything downstream still sees the same (QImage, JPEG) pair and needs
+ * no second code path.
+ *
  * RESILIENCE
  * ----------
  * The cable is ~10 m and gets moved around a pipe; disconnects are expected,
@@ -44,7 +49,10 @@
 #include <QElapsedTimer>
 #include <QImage>
 #include <QObject>
+#include <QSize>
 #include <QString>
+
+#include "usertext.h"
 #include <QVariantMap>
 #include <QThread>
 
@@ -86,11 +94,20 @@ protected:
 private:
     /* Find and open the camera. Returns 0 and sets *out on success, otherwise a
      * libusb error code with *err describing what a user can do about it. */
-    int openDevice(libusb_context *ctx, libusb_device_handle **out, QString *err);
-    /* Steps 2-6 of the handshake documented in uppprotocol.h. */
-    int handshake(libusb_device_handle *h, QString *err);
-    /* The read/reassemble loop. Returns when stopped or on a fatal USB error. */
+    int openDevice(libusb_context *ctx, libusb_device_handle **out, UserText *err);
+    /* Run the handshake of whichever variant m_variant names. */
+    int handshake(libusb_device_handle *h, UserText *err);
+    /* Steps 2-6 of the MJPEG handshake documented in uppprotocol.h. */
+    int handshakeMjpeg(libusb_device_handle *h, UserText *err);
+    /* getinfo + camera_up of the single-interface YUYV variant. */
+    int handshakeYuyv(libusb_device_handle *h, UserText *err);
+    /* The read loop of the current variant. Returns when stopped or on a
+     * fatal USB error. */
     void streamLoop(libusb_device_handle *h);
+    void streamLoopMjpeg(libusb_device_handle *h);
+    void streamLoopYuyv(libusb_device_handle *h);
+    /* Hand the camera back after streamLoop(), per variant. */
+    void teardown(libusb_device_handle *h);
 
     /* Apply the current gain to a freshly decoded frame, in place. */
     void applyGain(QImage *image) const;
@@ -98,6 +115,8 @@ private:
     QAtomicInt m_stop;
     QAtomicInt m_gainPercent;
     bool m_lastButton;
+    /* upp::Variant of the camera currently open; set by run() after open. */
+    int m_variant;
 };
 
 /* ------------------------------------------------------------------------- */
@@ -128,8 +147,11 @@ class UppCamera : public QObject
      * worth. */
     Q_PROPERTY(qreal gain READ gain WRITE setGain NOTIFY gainChanged)
     Q_PROPERTY(qreal maxGain READ maxGain CONSTANT)
-    Q_PROPERTY(int frameWidth READ frameWidth CONSTANT)
-    Q_PROPERTY(int frameHeight READ frameHeight CONSTANT)
+    /* Geometry of the stream. Not constant: the MJPEG variant sends 640x480,
+     * the single-interface YUYV variant 320x240. Follows the frames actually
+     * received, 640x480 until the first one. */
+    Q_PROPERTY(int frameWidth READ frameWidth NOTIFY frameSizeChanged)
+    Q_PROPERTY(int frameHeight READ frameHeight NOTIFY frameSizeChanged)
     /* Whether the LED ring on the camera head can be driven from here.
      *
      * Currently false, and that is a measured result rather than a stub: 45 s
@@ -197,6 +219,7 @@ signals:
     void frameAvailable();
     void buttonPressedChanged();
     void deviceInfoChanged();
+    void frameSizeChanged();
     /* Rising edge of the inline push-button — QML binds a snapshot to this. */
     void buttonClicked();
 
@@ -214,6 +237,7 @@ private:
     QString m_statusDetail;
     QImage m_image;
     QByteArray m_jpeg;
+    QSize m_frameSize;
     int m_frameCount;
 
     /* fps is measured over a sliding one-second window rather than from frame

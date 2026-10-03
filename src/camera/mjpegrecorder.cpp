@@ -153,17 +153,17 @@ qint64 MjpegRecorder::durationMs() const
     return m_lastFrameNs / 1000000;
 }
 
-void MjpegRecorder::setError(const QString &err)
+void MjpegRecorder::setError(const UserText &err)
 {
-    m_lastError = err;
-    qWarning() << "pipecam: recorder:" << err;
+    m_lastError = err.ui;
+    qWarning() << "pipecam: recorder:" << err.log;
     emit lastErrorChanged();
 }
 
 bool MjpegRecorder::start(const QString &path, int width, int height)
 {
     if (m_pipeline) {
-        setError(tr("Already recording."));
+        setError(UserText("MjpegRecorder", QT_TRANSLATE_NOOP("MjpegRecorder", "Already recording.")));
         return false;
     }
 
@@ -198,8 +198,8 @@ bool MjpegRecorder::start(const QString &path, int width, int height)
     GstElement *sink = gst_element_factory_make("filesink", "sink");
 
     if (!m_pipeline || !m_appsrc || !parse || !mux || !sink) {
-        setError(tr("Video recording is unavailable: a required GStreamer "
-                    "element is missing (appsrc/jpegparse/qtmux/filesink)."));
+        setError(UserText("MjpegRecorder", QT_TRANSLATE_NOOP("MjpegRecorder", "Video recording is unavailable: a required GStreamer "
+                                                                              "element is missing (appsrc/jpegparse/qtmux/filesink).")));
         teardown();
         return false;
     }
@@ -231,7 +231,7 @@ bool MjpegRecorder::start(const QString &path, int width, int height)
 
     gst_bin_add_many(GST_BIN(m_pipeline), m_appsrc, parse, mux, sink, NULL);
     if (!gst_element_link_many(m_appsrc, parse, mux, sink, NULL)) {
-        setError(tr("Could not build the recording pipeline."));
+        setError(UserText("MjpegRecorder", QT_TRANSLATE_NOOP("MjpegRecorder", "Could not build the recording pipeline.")));
         teardown();
         return false;
     }
@@ -239,7 +239,7 @@ bool MjpegRecorder::start(const QString &path, int width, int height)
     const GstStateChangeReturn ret =
             gst_element_set_state(m_pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
-        setError(tr("Could not start recording to %1.").arg(path));
+        setError(UserText("MjpegRecorder", QT_TRANSLATE_NOOP("MjpegRecorder", "Could not start recording to %1.")).arg(path));
         teardown();
         return false;
     }
@@ -323,7 +323,7 @@ void MjpegRecorder::pollBus()
     qWarning() << "pipecam: recorder pipeline error:"
                << (err ? err->message : "unknown")
                << "| debug:" << (dbg ? dbg : "(none)");
-    setError(tr("Recording failed: %1")
+    setError(UserText("MjpegRecorder", QT_TRANSLATE_NOOP("MjpegRecorder", "Recording failed: %1"))
              .arg(QString::fromUtf8(err ? err->message : "unknown")));
     if (err) g_error_free(err);
     g_free(dbg);
@@ -354,8 +354,8 @@ void MjpegRecorder::stop()
                         bus, GstClockTime(EOS_TIMEOUT_MS) * GST_MSECOND,
                         GstMessageType(GST_MESSAGE_EOS | GST_MESSAGE_ERROR));
             if (!msg) {
-                setError(tr("Timed out finalising the video file — it may be "
-                            "incomplete."));
+                setError(UserText("MjpegRecorder", QT_TRANSLATE_NOOP("MjpegRecorder", "Timed out finalising the video file — it may be "
+                                                                                      "incomplete.")));
             } else {
                 if (GST_MESSAGE_TYPE(msg) == GST_MESSAGE_ERROR) {
                     GError *err = 0;
@@ -364,7 +364,7 @@ void MjpegRecorder::stop()
                     qWarning() << "pipecam: recorder pipeline error:"
                                << (err ? err->message : "unknown")
                                << "| debug:" << (dbg ? dbg : "(none)");
-                    setError(tr("Recording failed: %1")
+                    setError(UserText("MjpegRecorder", QT_TRANSLATE_NOOP("MjpegRecorder", "Recording failed: %1"))
                              .arg(QString::fromUtf8(err ? err->message : "unknown")));
                     if (err) g_error_free(err);
                     g_free(dbg);

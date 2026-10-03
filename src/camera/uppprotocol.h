@@ -83,6 +83,14 @@ static const DeviceId KNOWN_DEVICES[] = {
 static const int KNOWN_DEVICE_COUNT =
         int(sizeof(KNOWN_DEVICES) / sizeof(KNOWN_DEVICES[0]));
 
+/* Which firmware is on the other end of the cable. Decided per open from the
+ * configuration descriptor — see "THE SINGLE-INTERFACE YUYV VARIANT" below. */
+enum Variant {
+    VariantUnknown,
+    VariantMjpeg,   /* two interfaces, the protocol described above   */
+    VariantYuyv     /* one interface, raw 320x240 YUYV                */
+};
+
 /* Interfaces and endpoints. */
 static const int IFACE_IAP      = 0;
 static const int IFACE_STREAM   = 1;
@@ -114,12 +122,71 @@ static const int MAX_FRAME_BYTES = 512 * 1024;
 /* Frames to discard after CONNECT_CMD — the first one or two are partial. */
 static const int WARMUP_FRAMES = 2;
 
-/* Nominal stream geometry (the device has no way to report or change it). */
+/* Nominal stream geometry of the MJPEG variant (the device has no way to
+ * report or change it). */
 static const int FRAME_WIDTH  = 640;
 static const int FRAME_HEIGHT = 480;
 
 /* Only these camera ids belong to the video stream. */
 inline bool cidIsValid(unsigned char cid) { return cid == 7 || cid == 11; }
+
+/*
+ * THE SINGLE-INTERFACE "YUYV" VARIANT
+ * ===================================
+ * Same VID:PID (2ce3:3828), same "Geek szitman" / "useepluscam" strings, but a
+ * completely different firmware. First field report: bcdDevice 1.11 on an
+ * Xperia 10 III (GitHub issue #1). Its configuration has exactly one interface:
+ *
+ *   Interface 0  alt 0, class ff/f0/01   bulk IN 0x82, bulk OUT 0x02
+ *
+ * There is no interface 1, so the MJPEG handshake above cannot even begin —
+ * claiming interface 1 fails with LIBUSB_ERROR_INVALID_PARAM (auto-detach makes
+ * libusb use USBDEVFS_DISCONNECT_CLAIM, which answers EINVAL for a missing
+ * interface rather than ENOENT).
+ *
+ * The variant is told apart from the descriptors alone, never from the IDs:
+ * one interface, carrying bulk IN 0x82 and bulk OUT 0x02.
+ *
+ * NOT verified on our own hardware. The protocol below follows two public
+ * implementations that agree byte for byte and were tested on this variant:
+ *   https://github.com/Bognabon/Endoscope_Viewer          (Python, MIT)
+ *   https://github.com/KlumpRasmus/supercamera-yuyv-linux (V4L2, GPL-2.0+)
+ *
+ * HANDSHAKE — class requests on the default control pipe, not bulk writes
+ *   1. claim interface 0, clear_halt on 0x82 and 0x02
+ *   2. "getinfo":   bmRequestType 0xA0 (IN, class, device), bRequest 0x00,
+ *                   wValue 0x0005, wIndex 0, 512 bytes. Failure is harmless.
+ *   3. "camera_up": bmRequestType 0x20 (OUT, class, device), bRequest 0x01,
+ *                   wValue 0x0005, wIndex 0, 64 zero bytes; then wait 200 ms.
+ *   Teardown, "camera_down": 0x20 / 0x02 / 0x0005 / 0, no data.
+ *
+ * STREAM
+ *   Uncompressed 320 x 240 YUYV (YUY2: Y0 U Y1 V), one frame per bulk read of
+ *   FRAME + 512 bytes on 0x82. The FIRST block after camera_up carries a 512
+ *   byte preamble before the frame; every later block starts with pixels.
+ *   No header, no frame id, no push-button flag.
+ */
+namespace yuyv {
+static const int IFACE   = 0;
+static const unsigned char EP_IN  = 0x82;
+static const unsigned char EP_OUT = 0x02;
+
+static const uint8_t  REQ_TYPE_IN   = 0xA0;
+static const uint8_t  REQ_TYPE_OUT  = 0x20;
+static const uint8_t  REQ_GETINFO   = 0x00;
+static const uint8_t  REQ_CAMERA_UP = 0x01;
+static const uint8_t  REQ_CAMERA_DOWN = 0x02;
+static const uint16_t REQ_VALUE     = 0x0005;
+static const int GETINFO_LEN   = 512;
+static const int CAMERA_UP_LEN = 64;
+static const int CAMERA_UP_SETTLE_MS = 200;
+
+static const int FRAME_WIDTH  = 320;
+static const int FRAME_HEIGHT = 240;
+static const int FRAME_BYTES  = FRAME_WIDTH * FRAME_HEIGHT * 2;
+static const int PREAMBLE_LEN = 512;
+static const int READ_SIZE    = FRAME_BYTES + PREAMBLE_LEN;
+} // namespace yuyv
 
 } // namespace upp
 

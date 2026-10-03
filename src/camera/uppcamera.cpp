@@ -7,10 +7,12 @@
  */
 #include "uppcamera.h"
 #include "uppprotocol.h"
+#include "uppvariant.h"
 #include "diaglog.h"
 
 #include <libusb-1.0/libusb.h>
 
+#include <QBuffer>
 #include <QDebug>
 #include <QStringList>
 
@@ -60,6 +62,7 @@ UppCameraWorker::UppCameraWorker(QObject *parent)
     , m_stop(0)
     , m_gainPercent(100)
     , m_lastButton(false)
+    , m_variant(upp::VariantUnknown)
 {
 }
 
@@ -124,7 +127,7 @@ void UppCameraWorker::requestStop()
 }
 
 int UppCameraWorker::openDevice(libusb_context *ctx, libusb_device_handle **out,
-                                QString *err)
+                                UserText *err)
 {
     for (int i = 0; i < upp::KNOWN_DEVICE_COUNT; ++i) {
         libusb_device_handle *h = libusb_open_device_with_vid_pid(
@@ -164,11 +167,11 @@ int UppCameraWorker::openDevice(libusb_context *ctx, libusb_device_handle **out,
         libusb_free_device_list(list, 1);
 
     if (seen) {
-        *err = QObject::tr("Camera found but not accessible. The USB permission "
-                           "rule is missing — reinstall the app and replug the camera.");
+        *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Camera found but not accessible. The USB permission "
+                                                                "rule is missing — reinstall the app and replug the camera."));
         return LIBUSB_ERROR_ACCESS;
     }
-    *err = QObject::tr("No camera detected. Check the USB-C connection.");
+    *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "No camera detected. Check the USB-C connection."));
     return LIBUSB_ERROR_NO_DEVICE;
 }
 
@@ -246,7 +249,34 @@ static QVariantMap collectDeviceInfo(libusb_device_handle *h)
     return info;
 }
 
-int UppCameraWorker::handshake(libusb_device_handle *h, QString *err)
+/* Which firmware is this? See uppvariant.h. */
+static upp::Variant detectVariant(libusb_device_handle *h)
+{
+    libusb_config_descriptor *cfg = 0;
+    if (libusb_get_active_config_descriptor(libusb_get_device(h), &cfg) != 0 || !cfg)
+        return upp::VariantMjpeg;   /* cannot tell — keep the old behaviour */
+    const upp::Variant v = upp::variantOf(cfg);
+    libusb_free_config_descriptor(cfg);
+    return v;
+}
+
+/* First bytes of a buffer as hex, for the verbose log. */
+static QString hexHead(const unsigned char *p, int n, int max = 32)
+{
+    QString s;
+    for (int i = 0; i < n && i < max; ++i)
+        s += QString::asprintf("%02x ", p[i]);
+    return s.trimmed();
+}
+
+int UppCameraWorker::handshake(libusb_device_handle *h, UserText *err)
+{
+    if (m_variant == upp::VariantYuyv)
+        return handshakeYuyv(h, err);
+    return handshakeMjpeg(h, err);
+}
+
+int UppCameraWorker::handshakeMjpeg(libusb_device_handle *h, UserText *err)
 {
     int rc;
 
@@ -278,21 +308,24 @@ int UppCameraWorker::handshake(libusb_device_handle *h, QString *err)
             qWarning() << "pipecam: claim interface" << iface << "failed:" << libusb_error_name(rc);
             switch (rc) {
             case LIBUSB_ERROR_ACCESS:
-                *err = QObject::tr("Not allowed to open the camera (USB permissions).");
+                *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Not allowed to open the camera (USB permissions)."));
                 break;
             case LIBUSB_ERROR_BUSY:
-                *err = QObject::tr("Camera is in use by another program or driver "
-                                   "(interface %1). Close other camera apps, or "
-                                   "unplug and replug it.").arg(iface);
+                *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Camera is in use by another program or driver "
+                                                                        "(interface %1). Close other camera apps, or "
+                                                                        "unplug and replug it.")).arg(iface);
                 break;
             case LIBUSB_ERROR_NOT_FOUND:
-                *err = QObject::tr("This camera has no interface %1 — an unknown "
-                                   "variant. Please send a diagnostic report "
-                                   "(Settings → About).").arg(iface);
+            /* What a missing interface really looks like with auto-detach on
+             * (see uppprotocol.h); variant detection should have caught it. */
+            case LIBUSB_ERROR_INVALID_PARAM:
+                *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "This camera has no interface %1 — an unknown "
+                                                                        "variant. Please send a diagnostic report "
+                                                                        "(Settings → About).")).arg(iface);
                 break;
             default:
-                *err = QObject::tr("Could not take over the camera's USB "
-                                   "interface %1.").arg(iface);
+                *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Could not take over the camera's USB "
+                                                                        "interface %1.")).arg(iface);
                 break;
             }
             *err += QStringLiteral(" [%1]").arg(usbErr(rc));
@@ -318,7 +351,7 @@ int UppCameraWorker::handshake(libusb_device_handle *h, QString *err)
     PIPECAM_TRACE(QStringLiteral("alt setting %1 on interface %2: %3").arg(upp::STREAM_ALTSETTING)
                   .arg(upp::IFACE_STREAM).arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)));
     if (rc < 0) {
-        *err = QObject::tr("Could not start the camera's video interface.")
+        *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Could not start the camera's video interface."))
              + QStringLiteral(" [%1]").arg(usbErr(rc));
         return rc;
     }
@@ -330,7 +363,7 @@ int UppCameraWorker::handshake(libusb_device_handle *h, QString *err)
                               upp::MAGIC_INIT_LEN, &transferred, 1000);
     PIPECAM_TRACE(QStringLiteral("init command: %1, %2 bytes").arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)).arg(transferred));
     if (rc < 0) {
-        *err = QObject::tr("Camera did not accept the initialisation command.")
+        *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Camera did not accept the initialisation command."))
              + QStringLiteral(" [%1]").arg(usbErr(rc));
         return rc;
     }
@@ -339,14 +372,177 @@ int UppCameraWorker::handshake(libusb_device_handle *h, QString *err)
                               upp::CONNECT_CMD_LEN, &transferred, 1000);
     PIPECAM_TRACE(QStringLiteral("connect command: %1, %2 bytes").arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)).arg(transferred));
     if (rc < 0) {
-        *err = QObject::tr("Camera did not accept the connect command.")
+        *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Camera did not accept the connect command."))
              + QStringLiteral(" [%1]").arg(usbErr(rc));
         return rc;
     }
     return 0;
 }
 
+/* Single-interface variant: two class requests on the control pipe, then the
+ * camera streams on its own. See uppprotocol.h. */
+int UppCameraWorker::handshakeYuyv(libusb_device_handle *h, UserText *err)
+{
+    libusb_set_auto_detach_kernel_driver(h, 1);
+
+    int rc = libusb_set_configuration(h, 1);
+    if (rc < 0 && rc != LIBUSB_ERROR_BUSY)
+        qWarning() << "pipecam: set_configuration:" << libusb_error_name(rc);
+    PIPECAM_TRACE(QStringLiteral("set_configuration(1): %1").arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)));
+
+    rc = libusb_claim_interface(h, upp::yuyv::IFACE);
+    PIPECAM_TRACE(QStringLiteral("claim interface %1: %2").arg(upp::yuyv::IFACE)
+                  .arg(rc == 0 ? QStringLiteral("ok") : usbErr(rc)));
+    if (rc < 0) {
+        qWarning() << "pipecam: claim interface" << upp::yuyv::IFACE << "failed:" << libusb_error_name(rc);
+        if (rc == LIBUSB_ERROR_ACCESS)
+            *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Not allowed to open the camera (USB permissions)."));
+        else if (rc == LIBUSB_ERROR_BUSY)
+            *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Camera is in use by another program or driver "
+                                                                    "(interface %1). Close other camera apps, or "
+                                                                    "unplug and replug it.")).arg(upp::yuyv::IFACE);
+        else
+            *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Could not take over the camera's USB "
+                                                                    "interface %1.")).arg(upp::yuyv::IFACE);
+        *err += QStringLiteral(" [%1]").arg(usbErr(rc));
+        return rc;
+    }
+
+    libusb_clear_halt(h, upp::yuyv::EP_IN);
+    libusb_clear_halt(h, upp::yuyv::EP_OUT);
+
+    /* getinfo: both references send it and ignore the answer. Keep it — the
+     * firmware may expect it before camera_up — but log what comes back,
+     * because it is the only self-description this variant offers. */
+    {
+        unsigned char info[upp::yuyv::GETINFO_LEN];
+        rc = libusb_control_transfer(h, upp::yuyv::REQ_TYPE_IN, upp::yuyv::REQ_GETINFO,
+                                     upp::yuyv::REQ_VALUE, 0, info, sizeof(info), 1000);
+        PIPECAM_TRACE(rc >= 0 ? QStringLiteral("getinfo: %1 bytes: %2").arg(rc).arg(hexHead(info, rc, 64))
+                              : QStringLiteral("getinfo: %1 (ignored)").arg(usbErr(rc)));
+    }
+
+    unsigned char up[upp::yuyv::CAMERA_UP_LEN] = { 0 };
+    rc = libusb_control_transfer(h, upp::yuyv::REQ_TYPE_OUT, upp::yuyv::REQ_CAMERA_UP,
+                                 upp::yuyv::REQ_VALUE, 0, up, sizeof(up), 1000);
+    PIPECAM_TRACE(QStringLiteral("camera_up: %1").arg(rc >= 0 ? QStringLiteral("ok, %1 bytes").arg(rc) : usbErr(rc)));
+    if (rc < 0) {
+        *err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Camera did not accept the initialisation command."))
+             + QStringLiteral(" [%1]").arg(usbErr(rc));
+        libusb_release_interface(h, upp::yuyv::IFACE);
+        return rc;
+    }
+    msleep(upp::yuyv::CAMERA_UP_SETTLE_MS);
+    return 0;
+}
+
 void UppCameraWorker::streamLoop(libusb_device_handle *h)
+{
+    if (m_variant == upp::VariantYuyv)
+        streamLoopYuyv(h);
+    else
+        streamLoopMjpeg(h);
+}
+
+/* YUY2 (Y0 U Y1 V) to RGB32. The coefficients are the ones OpenCV's
+ * COLOR_YUV2BGR_YUY2 uses, i.e. what the reference viewer displayed when it
+ * was checked against this camera — in 16.16 fixed point, so a frame costs
+ * integer arithmetic only. */
+static QImage yuyvToImage(const unsigned char *src, int w, int h)
+{
+    QImage img(w, h, QImage::Format_RGB32);
+    for (int y = 0; y < h; ++y) {
+        const unsigned char *s = src + y * w * 2;
+        QRgb *d = reinterpret_cast<QRgb *>(img.scanLine(y));
+        for (int x = 0; x < w; x += 2, s += 4) {
+            const int u = s[1] - 128;
+            const int v = s[3] - 128;
+            const int rd = (91947 * v) >> 16;               /* 1.403 */
+            const int gd = (22544 * u + 46793 * v) >> 16;   /* 0.344, 0.714 */
+            const int bd = (116195 * u) >> 16;              /* 1.773 */
+            for (int k = 0; k < 2; ++k) {
+                const int yy = s[k * 2];
+                const int r = yy + rd, g = yy - gd, b = yy + bd;
+                d[x + k] = qRgb(qBound(0, r, 255), qBound(0, g, 255), qBound(0, b, 255));
+            }
+        }
+    }
+    return img;
+}
+
+void UppCameraWorker::streamLoopYuyv(libusb_device_handle *h)
+{
+    QByteArray block(upp::yuyv::READ_SIZE, Qt::Uninitialized);
+    bool first = true;
+    int emitted = 0;
+    int shortLogged = 0;
+
+    while (!m_stop.loadAcquire()) {
+        int n = 0;
+        int rc = libusb_bulk_transfer(h, upp::yuyv::EP_IN,
+                                      reinterpret_cast<unsigned char *>(block.data()),
+                                      upp::yuyv::READ_SIZE, &n, READ_TIMEOUT_MS);
+        if (rc == LIBUSB_ERROR_TIMEOUT)
+            continue;
+        if (rc == LIBUSB_ERROR_PIPE) {
+            /* Both references recover a stalled endpoint in place. */
+            libusb_clear_halt(h, upp::yuyv::EP_IN);
+            continue;
+        }
+        if (rc < 0) {
+            qWarning() << "pipecam: stream ended:" << libusb_error_name(rc)
+                       << "after" << emitted << "frames";
+            return;
+        }
+
+        const unsigned char *p = reinterpret_cast<const unsigned char *>(block.constData());
+        const int offset = first ? upp::yuyv::PREAMBLE_LEN : 0;
+        if (first || emitted < 3)
+            PIPECAM_TRACE(QStringLiteral("yuyv block: %1 bytes, offset %2, head %3")
+                          .arg(n).arg(offset).arg(hexHead(p, n, 16)));
+        first = false;
+
+        if (n < offset + upp::yuyv::FRAME_BYTES) {
+            if (shortLogged < 5) {
+                ++shortLogged;
+                qInfo() << "pipecam: short yuyv block," << n << "bytes, need"
+                        << offset + upp::yuyv::FRAME_BYTES;
+            }
+            continue;
+        }
+
+        QImage img = yuyvToImage(p + offset, upp::yuyv::FRAME_WIDTH, upp::yuyv::FRAME_HEIGHT);
+
+        /* Encode before the gain, so snapshots and video get the camera's
+         * picture exactly as the MJPEG variant hands it over. Quality 90 as in
+         * MjpegRecorder; a 320x240 frame costs about a millisecond. */
+        QByteArray jpeg;
+        {
+            QBuffer buf(&jpeg);
+            buf.open(QIODevice::WriteOnly);
+            img.save(&buf, "JPEG", 90);
+        }
+        if (++emitted == 1)
+            qInfo() << "pipecam: first yuyv frame," << n << "bytes read," << jpeg.size() << "bytes jpeg";
+        applyGain(&img);
+        emit frameReady(img, jpeg);
+    }
+}
+
+void UppCameraWorker::teardown(libusb_device_handle *h)
+{
+    if (m_variant == upp::VariantYuyv) {
+        libusb_control_transfer(h, upp::yuyv::REQ_TYPE_OUT, upp::yuyv::REQ_CAMERA_DOWN,
+                                upp::yuyv::REQ_VALUE, 0, 0, 0, 1000);
+        libusb_release_interface(h, upp::yuyv::IFACE);
+        return;
+    }
+    libusb_set_interface_alt_setting(h, upp::IFACE_STREAM, 0);
+    libusb_release_interface(h, upp::IFACE_STREAM);
+    libusb_release_interface(h, upp::IFACE_IAP);
+}
+
+void UppCameraWorker::streamLoopMjpeg(libusb_device_handle *h)
 {
     QByteArray packet(upp::PKT_SIZE, Qt::Uninitialized);
     QByteArray acc;                 /* frame accumulator */
@@ -441,18 +637,18 @@ void UppCameraWorker::run()
      * Treat a lost camera as a normal state to recover from, not a failure. */
     while (!m_stop.loadAcquire()) {
         libusb_device_handle *h = 0;
-        QString err;
+        UserText err;
 
         emit statusChanged(UppCamera::Searching, QString());
         setLibusbVerbose(ctx, DiagLog::isVerbose());
         int rc = openDevice(ctx, &h, &err);
         if (rc != 0) {
-            if (err != lastLogged) {
-                qInfo() << "pipecam: open:" << libusb_error_name(rc) << "-" << err;
-                lastLogged = err;
+            if (err.log != lastLogged) {
+                qInfo() << "pipecam: open:" << libusb_error_name(rc) << "-" << err.log;
+                lastLogged = err.log;
             }
             emit statusChanged(rc == LIBUSB_ERROR_ACCESS ? UppCamera::Error
-                                                         : UppCamera::Searching, err);
+                                                         : UppCamera::Searching, err.ui);
             /* Sleep in slices so a stop request is still honoured promptly. */
             for (int i = 0; i < RETRY_DELAY_MS / 100 && !m_stop.loadAcquire(); ++i)
                 msleep(100);
@@ -460,14 +656,26 @@ void UppCameraWorker::run()
         }
 
         emit statusChanged(UppCamera::Connecting, QString());
-        emit deviceInfoReady(collectDeviceInfo(h));
-        rc = handshake(h, &err);
+        m_variant = detectVariant(h);
+        PIPECAM_TRACE(QStringLiteral("variant: %1").arg(upp::variantName(m_variant)));
+        QVariantMap info = collectDeviceInfo(h);
+        info["format"] = m_variant == upp::VariantYuyv ? QStringLiteral("YUYV 4:2:2")
+                                                       : QStringLiteral("MJPEG");
+        emit deviceInfoReady(info);
+        if (m_variant == upp::VariantUnknown) {
+            err = UserText("QObject", QT_TRANSLATE_NOOP("QObject", "Unknown camera variant: its USB layout matches no "
+                                                                   "known protocol. Please send a diagnostic report "
+                                                                   "(Settings → About)."));
+            rc = LIBUSB_ERROR_NOT_SUPPORTED;
+        } else {
+            rc = handshake(h, &err);
+        }
         if (rc != 0) {
-            if (err != lastLogged) {
-                qWarning() << "pipecam: handshake failed:" << err;
-                lastLogged = err;
+            if (err.log != lastLogged) {
+                qWarning() << "pipecam: handshake failed:" << err.log;
+                lastLogged = err.log;
             }
-            emit statusChanged(UppCamera::Error, err);
+            emit statusChanged(UppCamera::Error, err.ui);
             libusb_close(h);
             for (int i = 0; i < RETRY_DELAY_MS / 100 && !m_stop.loadAcquire(); ++i)
                 msleep(100);
@@ -485,9 +693,7 @@ void UppCameraWorker::run()
         /* Gentle teardown. A libusb_reset_device() here would force a USB
          * re-enumeration and make the NEXT open race against it — which shows
          * up as an intermittent "camera is busy" on restart. */
-        libusb_set_interface_alt_setting(h, upp::IFACE_STREAM, 0);
-        libusb_release_interface(h, upp::IFACE_STREAM);
-        libusb_release_interface(h, upp::IFACE_IAP);
+        teardown(h);
         libusb_close(h);
 
         if (m_lastButton) {
@@ -538,8 +744,15 @@ UppCamera::~UppCamera()
     stop();
 }
 
-int UppCamera::frameWidth() const  { return upp::FRAME_WIDTH; }
-int UppCamera::frameHeight() const { return upp::FRAME_HEIGHT; }
+int UppCamera::frameWidth() const
+{
+    return m_frameSize.isValid() ? m_frameSize.width() : upp::FRAME_WIDTH;
+}
+
+int UppCamera::frameHeight() const
+{
+    return m_frameSize.isValid() ? m_frameSize.height() : upp::FRAME_HEIGHT;
+}
 
 QString UppCamera::statusText() const
 {
@@ -623,6 +836,10 @@ void UppCamera::onFrameReady(const QImage &image, const QByteArray &jpeg)
     m_image = image;
     m_jpeg = jpeg;
     ++m_frameCount;
+    if (image.size() != m_frameSize) {
+        m_frameSize = image.size();
+        emit frameSizeChanged();
+    }
 
     ++m_fpsFrames;
     const qint64 elapsed = m_fpsTimer.elapsed();
