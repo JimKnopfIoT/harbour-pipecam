@@ -436,6 +436,7 @@ struct YuyvStream
     std::vector<bool> volatileHdr;      /* bytes that changed in the first headers */
     int headers;
     int headerLogs;
+    upp::yuyv::ButtonLatch button;
 };
 }
 
@@ -505,8 +506,10 @@ static void LIBUSB_CALL onYuyvTransfer(libusb_transfer *t)
         case upp::yuyv::Assembler::Nothing:
             break;
         }
-        if (s->as.lastHadHeader())
+        if (s->as.lastHadHeader()) {
+            s->button.header(s->as.header());
             logYuyvHeader(s, s->as.header());
+        }
     } else if (t->status != LIBUSB_TRANSFER_CANCELLED && !s->fatal) {
         s->fatal = t->status;
     }
@@ -569,6 +572,16 @@ void UppCameraWorker::streamLoopYuyv(libusb_context *ctx, libusb_device_handle *
     while (s.inFlight > 0 && !s.fatal && !m_stop.loadAcquire()) {
         struct timeval tv = { 0, 100 * 1000 };
         libusb_handle_events_timeout_completed(ctx, &tv, 0);
+        if (s.button.takePress()) {
+            if (m_lastButton)
+                emit buttonChanged(false);
+            m_lastButton = true;
+            emit buttonChanged(true);
+        }
+        if (!s.button.down() && m_lastButton) {
+            m_lastButton = false;
+            emit buttonChanged(false);
+        }
         if (!s.hasReady)
             continue;
         s.hasReady = false;

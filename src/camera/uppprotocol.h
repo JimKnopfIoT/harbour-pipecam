@@ -118,7 +118,7 @@ inline bool cidIsValid(unsigned char cid) { return cid == 7 || cid == 11; }
  *   transfer is queued (inferred) -> async, many in flight.
  *   Fixed-size 154112-byte sync reads (references) gave torn 640-wide slices.
  * Frame size taken from bytes between headers, see yuyvassembler.h.
- * Button flag unknown; header changes logged when verbose.
+ * Header byte 7: 0x02 = cable push-button, see yuyvassembler.h.
  */
 namespace yuyv {
 static const int IFACE   = 0;

@@ -17,6 +17,9 @@ namespace yuyv {
 static const int PKT_SIZE = 512;
 static const unsigned char HDR_MAGIC_0 = 0xDD;
 static const unsigned char HDR_MAGIC_1 = 0xCC;
+/* Header byte 7: 0x02 = cable push-button, set in one header per press (#1). */
+static const size_t HDR_FLAGS = 7;
+static const unsigned char HDR_BUTTON = 0x02;
 /* 1920x1080x2 < 4 MiB */
 static const size_t MAX_FRAME_BYTES = 4u * 1024u * 1024u;
 
@@ -110,6 +113,35 @@ private:
     int m_w, m_h;
     size_t m_dropped;
     int m_strayShort;
+};
+
+/* Press may span one header: press and release can arrive in one event pass. */
+class ButtonLatch
+{
+public:
+    ButtonLatch() : m_down(false), m_pending(false) {}
+
+    void header(const std::vector<unsigned char> &hdr)
+    {
+        if (hdr.size() <= HDR_FLAGS)
+            return;
+        const bool b = (hdr[HDR_FLAGS] & HDR_BUTTON) != 0;
+        if (b && !m_down)
+            m_pending = true;
+        m_down = b;
+    }
+    /* Rising edge since last call. */
+    bool takePress()
+    {
+        const bool r = m_pending;
+        m_pending = false;
+        return r;
+    }
+    bool down() const { return m_down; }
+
+private:
+    bool m_down;
+    bool m_pending;
 };
 
 } // namespace yuyv

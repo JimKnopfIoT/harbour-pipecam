@@ -1,6 +1,6 @@
 Name:       harbour-pipecam
 Summary:    Viewer and recorder for USB pipe inspection cameras
-Version:    0.1.4
+Version:    0.1.5
 Release:    1
 # Neutral BUILDHOST tag instead of the build machine's hostname.
 %define _buildhost reproducible-builder
@@ -75,6 +75,10 @@ fi
 %{_datadir}/polkit-1/rules.d/50-harbour-pipecam.rules
 
 %changelog
+* Sun Oct 04 2026 harbour-pipecam contributors 0.1.5-1
+- Single-interface variant: cable button works (frame header byte 7, 0x02)
+  (#1).
+
 * Sun Oct 04 2026 harbour-pipecam contributors 0.1.4-1
 - Single-interface variant: striped picture fixed. Resolution is taken from
   the stream (640x480 on the reported unit, not 320x240); frames are synced

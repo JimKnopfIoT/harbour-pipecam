@@ -441,7 +441,7 @@ Diese Kameras sind keine UVC-Geräte. Deshalb bindet kein Kerneltreiber sie, und
         <translation>Die Kamera hat den Verbindungsbefehl nicht angenommen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="745"/>
+        <location filename="../src/camera/uppcamera.cpp" line="758"/>
         <source>Unknown camera variant: its USB layout matches no known protocol. Please send a diagnostic report (Settings → About).</source>
         <translation>Unbekannte Kameravariante: Ihr USB-Aufbau passt zu keinem bekannten Protokoll. Bitte einen Diagnosebericht schicken (Einstellungen → Über).</translation>
     </message>
@@ -903,27 +903,27 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCamera</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="833"/>
+        <location filename="../src/camera/uppcamera.cpp" line="846"/>
         <source>Off</source>
         <translation>Aus</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="834"/>
+        <location filename="../src/camera/uppcamera.cpp" line="847"/>
         <source>Looking for camera…</source>
         <translation>Suche Kamera…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="835"/>
+        <location filename="../src/camera/uppcamera.cpp" line="848"/>
         <source>Connecting…</source>
         <translation>Verbinde…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="836"/>
+        <location filename="../src/camera/uppcamera.cpp" line="849"/>
         <source>Live</source>
         <translation>Live</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="837"/>
+        <location filename="../src/camera/uppcamera.cpp" line="850"/>
         <source>Problem</source>
         <translation>Problem</translation>
     </message>
@@ -931,7 +931,7 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCameraWorker</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="710"/>
+        <location filename="../src/camera/uppcamera.cpp" line="723"/>
         <source>USB subsystem unavailable.</source>
         <translation>USB-Subsystem nicht verfügbar.</translation>
     </message>
