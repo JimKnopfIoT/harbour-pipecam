@@ -59,9 +59,9 @@ private:
     int handshakeMjpeg(libusb_device_handle *h, UserText *err);
     int handshakeYuyv(libusb_device_handle *h, UserText *err);
     /* Returns when stopped or on fatal USB error. */
-    void streamLoop(libusb_device_handle *h);
+    void streamLoop(libusb_context *ctx, libusb_device_handle *h);
     void streamLoopMjpeg(libusb_device_handle *h);
-    void streamLoopYuyv(libusb_device_handle *h);
+    void streamLoopYuyv(libusb_context *ctx, libusb_device_handle *h);
     void teardown(libusb_device_handle *h);
 
     /* In place. */
@@ -89,7 +89,7 @@ class UppCamera : public QObject
      * Affects display and snapshots (re-encoded), not video (original JPEGs). */
     Q_PROPERTY(qreal gain READ gain WRITE setGain NOTIFY gainChanged)
     Q_PROPERTY(qreal maxGain READ maxGain CONSTANT)
-    /* From received frames: MJPEG 640x480, YUYV 320x240; 640x480 before first. */
+    /* From received frames: MJPEG 640x480, YUYV per device; 640x480 before first. */
     Q_PROPERTY(int frameWidth READ frameWidth NOTIFY frameSizeChanged)
     Q_PROPERTY(int frameHeight READ frameHeight NOTIFY frameSizeChanged)
     /* false: no known LED command (header fields, CONNECT args ruled out;

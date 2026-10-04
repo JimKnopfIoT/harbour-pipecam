@@ -31,6 +31,7 @@ HEADERS += \
     src/camera/uppcamera.h \
     src/camera/uppprotocol.h \
     src/camera/uppvariant.h \
+    src/camera/yuyvassembler.h \
     src/camera/videoframeitem.h \
     src/diag/diaglog.h \
     src/diag/diagreport.h \

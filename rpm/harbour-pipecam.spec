@@ -1,6 +1,6 @@
 Name:       harbour-pipecam
 Summary:    Viewer and recorder for USB pipe inspection cameras
-Version:    0.1.3
+Version:    0.1.4
 Release:    1
 # Neutral BUILDHOST tag instead of the build machine's hostname.
 %define _buildhost reproducible-builder
@@ -75,6 +75,13 @@ fi
 %{_datadir}/polkit-1/rules.d/50-harbour-pipecam.rules
 
 %changelog
+* Sun Oct 04 2026 harbour-pipecam contributors 0.1.4-1
+- Single-interface variant: striped picture fixed. Resolution is taken from
+  the stream (640x480 on the reported unit, not 320x240); frames are synced
+  on the camera's frame header; reading is asynchronous, so no data is lost
+  between frames (#1).
+- Verbose log records the frame headers, to find the cable button.
+
 * Sat Oct 03 2026 harbour-pipecam contributors 0.1.3-1
 - Support for the single-interface variant of the camera (bcdDevice 1.11,
   raw 320x240 YUYV instead of MJPEG), detected from its USB descriptor.

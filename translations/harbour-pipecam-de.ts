@@ -392,56 +392,56 @@ Diese Kameras sind keine UVC-Geräte. Deshalb bindet kein Kerneltreiber sie, und
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="137"/>
+        <location filename="../src/camera/uppcamera.cpp" line="139"/>
         <source>Camera found but not accessible. The USB permission rule is missing — reinstall the app and replug the camera.</source>
         <translation>Kamera gefunden, aber nicht zugreifbar. Die USB-Berechtigungsregel fehlt — App neu installieren und Kamera aus- und wieder einstecken.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="141"/>
+        <location filename="../src/camera/uppcamera.cpp" line="143"/>
         <source>No camera detected. Check the USB-C connection.</source>
         <translation>Keine Kamera erkannt. USB-C-Verbindung prüfen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="264"/>
-        <location filename="../src/camera/uppcamera.cpp" line="349"/>
+        <location filename="../src/camera/uppcamera.cpp" line="266"/>
+        <location filename="../src/camera/uppcamera.cpp" line="351"/>
         <source>Not allowed to open the camera (USB permissions).</source>
         <translation>Keine Berechtigung, die Kamera zu öffnen (USB-Rechte).</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="267"/>
-        <location filename="../src/camera/uppcamera.cpp" line="351"/>
+        <location filename="../src/camera/uppcamera.cpp" line="269"/>
+        <location filename="../src/camera/uppcamera.cpp" line="353"/>
         <source>Camera is in use by another program or driver (interface %1). Close other camera apps, or unplug and replug it.</source>
         <translation>Kamera wird von einem anderen Programm oder Treiber benutzt (Interface %1). Andere Kamera-Apps schließen oder Kamera aus- und wieder einstecken.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="274"/>
+        <location filename="../src/camera/uppcamera.cpp" line="276"/>
         <source>This camera has no interface %1 — an unknown variant. Please send a diagnostic report (Settings → About).</source>
         <translation>Diese Kamera hat kein Interface %1 — eine unbekannte Variante. Bitte einen Diagnosebericht schicken (Einstellungen → Über).</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="279"/>
-        <location filename="../src/camera/uppcamera.cpp" line="355"/>
+        <location filename="../src/camera/uppcamera.cpp" line="281"/>
+        <location filename="../src/camera/uppcamera.cpp" line="357"/>
         <source>Could not take over the camera&apos;s USB interface %1.</source>
         <translation>Das USB-Interface %1 der Kamera konnte nicht übernommen werden.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="305"/>
+        <location filename="../src/camera/uppcamera.cpp" line="307"/>
         <source>Could not start the camera&apos;s video interface.</source>
         <translation>Das Video-Interface der Kamera konnte nicht gestartet werden.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="317"/>
-        <location filename="../src/camera/uppcamera.cpp" line="378"/>
+        <location filename="../src/camera/uppcamera.cpp" line="319"/>
+        <location filename="../src/camera/uppcamera.cpp" line="380"/>
         <source>Camera did not accept the initialisation command.</source>
         <translation>Die Kamera hat den Initialisierungsbefehl nicht angenommen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="326"/>
+        <location filename="../src/camera/uppcamera.cpp" line="328"/>
         <source>Camera did not accept the connect command.</source>
         <translation>Die Kamera hat den Verbindungsbefehl nicht angenommen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="601"/>
+        <location filename="../src/camera/uppcamera.cpp" line="745"/>
         <source>Unknown camera variant: its USB layout matches no known protocol. Please send a diagnostic report (Settings → About).</source>
         <translation>Unbekannte Kameravariante: Ihr USB-Aufbau passt zu keinem bekannten Protokoll. Bitte einen Diagnosebericht schicken (Einstellungen → Über).</translation>
     </message>
@@ -903,27 +903,27 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCamera</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="689"/>
+        <location filename="../src/camera/uppcamera.cpp" line="833"/>
         <source>Off</source>
         <translation>Aus</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="690"/>
+        <location filename="../src/camera/uppcamera.cpp" line="834"/>
         <source>Looking for camera…</source>
         <translation>Suche Kamera…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="691"/>
+        <location filename="../src/camera/uppcamera.cpp" line="835"/>
         <source>Connecting…</source>
         <translation>Verbinde…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="692"/>
+        <location filename="../src/camera/uppcamera.cpp" line="836"/>
         <source>Live</source>
         <translation>Live</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="693"/>
+        <location filename="../src/camera/uppcamera.cpp" line="837"/>
         <source>Problem</source>
         <translation>Problem</translation>
     </message>
@@ -931,7 +931,7 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCameraWorker</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="566"/>
+        <location filename="../src/camera/uppcamera.cpp" line="710"/>
         <source>USB subsystem unavailable.</source>
         <translation>USB-Subsystem nicht verfügbar.</translation>
     </message>

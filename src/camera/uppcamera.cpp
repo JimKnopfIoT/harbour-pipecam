@@ -4,12 +4,14 @@
 #include "uppcamera.h"
 #include "uppprotocol.h"
 #include "uppvariant.h"
+#include "yuyvassembler.h"
 #include "diaglog.h"
 
 #include <libusb-1.0/libusb.h>
 
 #include <QBuffer>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QStringList>
 
 static const int RETRY_DELAY_MS = 1000;
@@ -384,10 +386,10 @@ int UppCameraWorker::handshakeYuyv(libusb_device_handle *h, UserText *err)
     return 0;
 }
 
-void UppCameraWorker::streamLoop(libusb_device_handle *h)
+void UppCameraWorker::streamLoop(libusb_context *ctx, libusb_device_handle *h)
 {
     if (m_variant == upp::VariantYuyv)
-        streamLoopYuyv(h);
+        streamLoopYuyv(ctx, h);
     else
         streamLoopMjpeg(h);
 }
@@ -415,47 +417,165 @@ static QImage yuyvToImage(const unsigned char *src, int w, int h)
     return img;
 }
 
-void UppCameraWorker::streamLoopYuyv(libusb_device_handle *h)
+namespace {
+/* Shared by the transfer callbacks; all on the worker thread. */
+struct YuyvStream
 {
-    QByteArray block(upp::yuyv::READ_SIZE, Qt::Uninitialized);
-    bool first = true;
-    int emitted = 0;
-    int shortLogged = 0;
+    upp::yuyv::Assembler as;
+    std::vector<std::vector<unsigned char> > bufs;  /* transfer buffers */
+    std::vector<unsigned char> ready;   /* latest complete frame */
+    int readyW, readyH;
+    bool hasReady;
+    int skipped;                        /* overwritten before decode */
+    int dropped;
+    int overflows;
+    int inFlight;
+    bool stopping;
+    int fatal;                          /* libusb_transfer_status, 0 = none */
+    std::vector<unsigned char> lastHeader;
+    std::vector<bool> volatileHdr;      /* bytes that changed in the first headers */
+    int headers;
+    int headerLogs;
+};
+}
 
-    while (!m_stop.loadAcquire()) {
-        int n = 0;
-        int rc = libusb_bulk_transfer(h, upp::yuyv::EP_IN,
-                                      reinterpret_cast<unsigned char *>(block.data()),
-                                      upp::yuyv::READ_SIZE, &n, READ_TIMEOUT_MS);
-        if (rc == LIBUSB_ERROR_TIMEOUT)
+/* Header bytes compared for change logging. */
+static const int HDR_CMP = 32;
+/* Headers used to learn which bytes change on their own. */
+static const int HDR_LEARN = 16;
+
+static void logYuyvHeader(YuyvStream *s, const std::vector<unsigned char> &hdr)
+{
+    const int n = int(qMin<size_t>(hdr.size(), HDR_CMP));
+    ++s->headers;
+    if (!DiagLog::isVerbose()) {
+        s->lastHeader = hdr;
+        return;
+    }
+    if (s->headers <= 3)
+        PIPECAM_TRACE(QStringLiteral("yuyv header %1: %2 bytes: %3")
+                      .arg(s->headers).arg(hdr.size()).arg(hexHead(hdr.data(), int(hdr.size()), HDR_CMP)));
+    if (s->volatileHdr.empty())
+        s->volatileHdr.assign(HDR_CMP, false);
+    QStringList changed;
+    for (int i = 0; i < n && i < int(s->lastHeader.size()); ++i) {
+        if (hdr[i] == s->lastHeader[i])
             continue;
-        if (rc == LIBUSB_ERROR_PIPE) {
-            libusb_clear_halt(h, upp::yuyv::EP_IN);
-            continue;
+        if (s->headers <= HDR_LEARN)
+            s->volatileHdr[i] = true;
+        else if (!s->volatileHdr[i])
+            changed << QString::asprintf("%d: %02x->%02x", i, s->lastHeader[i], hdr[i]);
+    }
+    if (s->headers == HDR_LEARN) {
+        QStringList v;
+        for (int i = 0; i < HDR_CMP; ++i)
+            if (s->volatileHdr[i])
+                v << QString::number(i);
+        PIPECAM_TRACE(QStringLiteral("yuyv header: bytes changing on their own: %1")
+                      .arg(v.isEmpty() ? QStringLiteral("none") : v.join(QLatin1Char(' '))));
+    }
+    if (!changed.isEmpty() && s->headerLogs < 50) {
+        ++s->headerLogs;
+        PIPECAM_TRACE(QStringLiteral("yuyv header %1 changed: %2").arg(s->headers).arg(changed.join(QStringLiteral(", "))));
+    }
+    s->lastHeader = hdr;
+}
+
+static void LIBUSB_CALL onYuyvTransfer(libusb_transfer *t)
+{
+    YuyvStream *s = static_cast<YuyvStream *>(t->user_data);
+    if (t->status == LIBUSB_TRANSFER_COMPLETED) {
+        switch (s->as.feed(t->buffer, t->actual_length)) {
+        case upp::yuyv::Assembler::FrameReady:
+            if (s->hasReady)
+                ++s->skipped;
+            s->ready.swap(s->as.frame());
+            s->readyW = s->as.width();
+            s->readyH = s->as.height();
+            s->hasReady = true;
+            break;
+        case upp::yuyv::Assembler::FrameDropped:
+            if (++s->dropped <= 5 && s->headers > 0)
+                qInfo() << "pipecam: yuyv frame dropped," << s->as.droppedBytes() << "bytes between headers";
+            break;
+        case upp::yuyv::Assembler::Overflow:
+            if (++s->overflows <= 3)
+                qInfo() << "pipecam: no yuyv header within" << s->as.droppedBytes() << "bytes";
+            break;
+        case upp::yuyv::Assembler::Nothing:
+            break;
         }
-        if (rc < 0) {
-            qWarning() << "pipecam: stream ended:" << libusb_error_name(rc)
-                       << "after" << emitted << "frames";
+        if (s->as.lastHadHeader())
+            logYuyvHeader(s, s->as.header());
+    } else if (t->status != LIBUSB_TRANSFER_CANCELLED && !s->fatal) {
+        s->fatal = t->status;
+    }
+
+    if (!s->stopping && !s->fatal && t->status == LIBUSB_TRANSFER_COMPLETED) {
+        const int rc = libusb_submit_transfer(t);
+        if (rc == 0)
             return;
+        qWarning() << "pipecam: resubmit:" << libusb_error_name(rc);
+        s->fatal = LIBUSB_TRANSFER_ERROR;
+    }
+    --s->inFlight;
+}
+
+static const char *transferStatusName(int status)
+{
+    switch (status) {
+    case LIBUSB_TRANSFER_ERROR:     return "ERROR";
+    case LIBUSB_TRANSFER_TIMED_OUT: return "TIMED_OUT";
+    case LIBUSB_TRANSFER_STALL:     return "STALL";
+    case LIBUSB_TRANSFER_NO_DEVICE: return "NO_DEVICE";
+    case LIBUSB_TRANSFER_OVERFLOW:  return "OVERFLOW";
+    default:                        return "?";
+    }
+}
+
+void UppCameraWorker::streamLoopYuyv(libusb_context *ctx, libusb_device_handle *h)
+{
+    /* Heap: leaked with the transfers if they cannot be reaped. */
+    YuyvStream &s = *new YuyvStream;
+    s.bufs.assign(upp::yuyv::XFER_COUNT, std::vector<unsigned char>(upp::yuyv::XFER_SIZE));
+    s.readyW = s.readyH = 0;
+    s.hasReady = false;
+    s.skipped = s.dropped = s.overflows = 0;
+    s.inFlight = 0;
+    s.stopping = false;
+    s.fatal = 0;
+    s.headers = s.headerLogs = 0;
+
+    std::vector<libusb_transfer *> xfers;
+    for (int i = 0; i < upp::yuyv::XFER_COUNT; ++i) {
+        libusb_transfer *t = libusb_alloc_transfer(0);
+        if (!t)
+            break;
+        libusb_fill_bulk_transfer(t, h, upp::yuyv::EP_IN, s.bufs[i].data(), upp::yuyv::XFER_SIZE,
+                                  onYuyvTransfer, &s, 0);
+        const int rc = libusb_submit_transfer(t);
+        if (rc < 0) {
+            qWarning() << "pipecam: submit:" << libusb_error_name(rc);
+            libusb_free_transfer(t);
+            break;
         }
+        xfers.push_back(t);
+        ++s.inFlight;
+    }
+    PIPECAM_TRACE(QStringLiteral("yuyv: %1 transfers of %2 bytes in flight").arg(s.inFlight).arg(upp::yuyv::XFER_SIZE));
 
-        const unsigned char *p = reinterpret_cast<const unsigned char *>(block.constData());
-        const int offset = first ? upp::yuyv::PREAMBLE_LEN : 0;
-        if (first || emitted < 3)
-            PIPECAM_TRACE(QStringLiteral("yuyv block: %1 bytes, offset %2, head %3")
-                          .arg(n).arg(offset).arg(hexHead(p, n, 16)));
-        first = false;
-
-        if (n < offset + upp::yuyv::FRAME_BYTES) {
-            if (shortLogged < 5) {
-                ++shortLogged;
-                qInfo() << "pipecam: short yuyv block," << n << "bytes, need"
-                        << offset + upp::yuyv::FRAME_BYTES;
-            }
+    std::vector<unsigned char> work;
+    int emitted = 0;
+    while (s.inFlight > 0 && !s.fatal && !m_stop.loadAcquire()) {
+        struct timeval tv = { 0, 100 * 1000 };
+        libusb_handle_events_timeout_completed(ctx, &tv, 0);
+        if (!s.hasReady)
             continue;
-        }
+        s.hasReady = false;
+        work.swap(s.ready);
+        const int w = s.readyW, hh = s.readyH;
 
-        QImage img = yuyvToImage(p + offset, upp::yuyv::FRAME_WIDTH, upp::yuyv::FRAME_HEIGHT);
+        QImage img = yuyvToImage(work.data(), w, hh);
 
         /* Encode before gain, like MJPEG originals. Quality 90 as MjpegRecorder. */
         QByteArray jpeg;
@@ -465,10 +585,34 @@ void UppCameraWorker::streamLoopYuyv(libusb_device_handle *h)
             img.save(&buf, "JPEG", 90);
         }
         if (++emitted == 1)
-            qInfo() << "pipecam: first yuyv frame," << n << "bytes read," << jpeg.size() << "bytes jpeg";
+            qInfo() << "pipecam: first yuyv frame," << w << "x" << hh << "," << jpeg.size() << "bytes jpeg";
         applyGain(&img);
         emit frameReady(img, jpeg);
     }
+
+    if (s.fatal)
+        qWarning() << "pipecam: stream ended:" << transferStatusName(s.fatal) << "after" << emitted << "frames";
+    qInfo() << "pipecam: yuyv stream:" << emitted << "shown," << s.skipped << "skipped,"
+            << s.dropped << "dropped," << s.overflows << "overflows,"
+            << s.as.strayShortPackets() << "short packets without header";
+
+    s.stopping = true;
+    for (size_t i = 0; i < xfers.size(); ++i)
+        libusb_cancel_transfer(xfers[i]);
+    QElapsedTimer drain;
+    drain.start();
+    while (s.inFlight > 0 && drain.elapsed() < 2000) {
+        struct timeval tv = { 0, 100 * 1000 };
+        libusb_handle_events_timeout_completed(ctx, &tv, 0);
+    }
+    if (s.inFlight > 0) {
+        /* Freeing an in-flight transfer is undefined; leak instead. */
+        qWarning() << "pipecam:" << s.inFlight << "transfers not reaped, leaked";
+        return;
+    }
+    for (size_t i = 0; i < xfers.size(); ++i)
+        libusb_free_transfer(xfers[i]);
+    delete &s;
 }
 
 void UppCameraWorker::teardown(libusb_device_handle *h)
@@ -623,7 +767,7 @@ void UppCameraWorker::run()
         lastLogged.clear();
         setLibusbVerbose(ctx, false);
         emit statusChanged(UppCamera::Streaming, QString());
-        streamLoop(h);
+        streamLoop(ctx, h);
 
         /* No libusb_reset_device(): forces re-enumeration, next open races. */
         teardown(h);

@@ -99,7 +99,7 @@ inline bool cidIsValid(unsigned char cid) { return cid == 7 || cid == 11; }
  * Claiming iface 1 here fails with LIBUSB_ERROR_INVALID_PARAM (EINVAL from
  * USBDEVFS_DISCONNECT_CLAIM). Detect by descriptors only, never by IDs.
  *
- * Unverified locally; per two public implementations:
+ * Handshake per two public implementations (both assume 320x240, no header):
  *   https://github.com/Bognabon/Endoscope_Viewer          (Python, MIT)
  *   https://github.com/KlumpRasmus/supercamera-yuyv-linux (V4L2, GPL-2.0+)
  *
@@ -110,9 +110,15 @@ inline bool cidIsValid(unsigned char cid) { return cid == 7 || cid == 11; }
  *   3. camera_up   0x20 / 0x01 / 0x0005 / 0, OUT 64 zero bytes; wait 200 ms
  *   teardown: camera_down 0x20 / 0x02 / 0x0005 / 0, no data
  *
- * Stream: 320x240 YUY2 (Y0 U Y1 V), one frame per bulk read of FRAME+512 on
- * 0x82. First block after camera_up: 512-byte preamble, then pixels.
- * No header, frame id or button flag.
+ * Stream (field report, bcdDevice 1.11, issue #1):
+ *   per frame: 511-byte header (short packet, DD CC 01 00 60 09 ...), then
+ *   YUY2 (Y0 U Y1 V) pixels. 640x480 (from images), header every ~92 ms;
+ *   getinfo bytes 46..49 = 640, 480 LE.
+ *   Sync reads lost ~25 % between headers: device drops data while no IN
+ *   transfer is queued (inferred) -> async, many in flight.
+ *   Fixed-size 154112-byte sync reads (references) gave torn 640-wide slices.
+ * Frame size taken from bytes between headers, see yuyvassembler.h.
+ * Button flag unknown; header changes logged when verbose.
  */
 namespace yuyv {
 static const int IFACE   = 0;
@@ -129,11 +135,9 @@ static const int GETINFO_LEN   = 512;
 static const int CAMERA_UP_LEN = 64;
 static const int CAMERA_UP_SETTLE_MS = 200;
 
-static const int FRAME_WIDTH  = 320;
-static const int FRAME_HEIGHT = 240;
-static const int FRAME_BYTES  = FRAME_WIDTH * FRAME_HEIGHT * 2;
-static const int PREAMBLE_LEN = 512;
-static const int READ_SIZE    = FRAME_BYTES + PREAMBLE_LEN;
+/* 16 KiB = one URB per transfer on Linux. 64 in flight ~ 1.7 frames at 640x480. */
+static const int XFER_SIZE  = 16 * 1024;
+static const int XFER_COUNT = 64;
 } // namespace yuyv
 
 } // namespace upp
