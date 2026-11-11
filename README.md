@@ -99,7 +99,7 @@ Then replug the camera or run `udevadm trigger --subsystem-match=usb`.
 - MJPEG protocol: `ProbeView` and community Linux drivers for this camera family
 - YUYV variant: [Endoscope_Viewer](https://github.com/Bognabon/Endoscope_Viewer), [supercamera-yuyv-linux](https://github.com/KlumpRasmus/supercamera-yuyv-linux)
 
-AI assisted development
+LLM assisted development
 
 ## Licence
 
