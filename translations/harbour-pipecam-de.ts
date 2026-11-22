@@ -392,58 +392,83 @@ Diese Kameras sind keine UVC-Geräte. Deshalb bindet kein Kerneltreiber sie, und
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="139"/>
+        <location filename="../src/camera/uppcamera.cpp" line="141"/>
         <source>Camera found but not accessible. The USB permission rule is missing — reinstall the app and replug the camera.</source>
         <translation>Kamera gefunden, aber nicht zugreifbar. Die USB-Berechtigungsregel fehlt — App neu installieren und Kamera aus- und wieder einstecken.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="143"/>
+        <location filename="../src/camera/uppcamera.cpp" line="145"/>
         <source>No camera detected. Check the USB-C connection.</source>
         <translation>Keine Kamera erkannt. USB-C-Verbindung prüfen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="266"/>
-        <location filename="../src/camera/uppcamera.cpp" line="351"/>
+        <location filename="../src/camera/uppcamera.cpp" line="268"/>
+        <location filename="../src/camera/uppcamera.cpp" line="353"/>
         <source>Not allowed to open the camera (USB permissions).</source>
         <translation>Keine Berechtigung, die Kamera zu öffnen (USB-Rechte).</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="269"/>
-        <location filename="../src/camera/uppcamera.cpp" line="353"/>
+        <location filename="../src/camera/uppcamera.cpp" line="271"/>
+        <location filename="../src/camera/uppcamera.cpp" line="355"/>
         <source>Camera is in use by another program or driver (interface %1). Close other camera apps, or unplug and replug it.</source>
         <translation>Kamera wird von einem anderen Programm oder Treiber benutzt (Interface %1). Andere Kamera-Apps schließen oder Kamera aus- und wieder einstecken.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="276"/>
+        <location filename="../src/camera/uppcamera.cpp" line="278"/>
         <source>This camera has no interface %1 — an unknown variant. Please send a diagnostic report (Settings → About).</source>
         <translation>Diese Kamera hat kein Interface %1 — eine unbekannte Variante. Bitte einen Diagnosebericht schicken (Einstellungen → Über).</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="281"/>
-        <location filename="../src/camera/uppcamera.cpp" line="357"/>
+        <location filename="../src/camera/uppcamera.cpp" line="283"/>
+        <location filename="../src/camera/uppcamera.cpp" line="359"/>
         <source>Could not take over the camera&apos;s USB interface %1.</source>
         <translation>Das USB-Interface %1 der Kamera konnte nicht übernommen werden.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="307"/>
+        <location filename="../src/camera/uppcamera.cpp" line="309"/>
         <source>Could not start the camera&apos;s video interface.</source>
         <translation>Das Video-Interface der Kamera konnte nicht gestartet werden.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="319"/>
-        <location filename="../src/camera/uppcamera.cpp" line="380"/>
+        <location filename="../src/camera/uppcamera.cpp" line="321"/>
+        <location filename="../src/camera/uppcamera.cpp" line="382"/>
         <source>Camera did not accept the initialisation command.</source>
         <translation>Die Kamera hat den Initialisierungsbefehl nicht angenommen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="328"/>
+        <location filename="../src/camera/uppcamera.cpp" line="330"/>
         <source>Camera did not accept the connect command.</source>
         <translation>Die Kamera hat den Verbindungsbefehl nicht angenommen.</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="758"/>
+        <location filename="../src/camera/uppcamera.cpp" line="863"/>
         <source>Unknown camera variant: its USB layout matches no known protocol. Please send a diagnostic report (Settings → About).</source>
         <translation>Unbekannte Kameravariante: Ihr USB-Aufbau passt zu keinem bekannten Protokoll. Bitte einen Diagnosebericht schicken (Einstellungen → Über).</translation>
+    </message>
+    <message>
+        <location filename="../src/camera/uvcdevice.cpp" line="157"/>
+        <source>UVC camera %1 found, but no video device appeared (kernel driver: %2). Please send a diagnostic report (Settings → About).</source>
+        <translation>UVC-Kamera %1 gefunden, aber kein Videogerät erschienen (Kerneltreiber: %2). Bitte einen Diagnosebericht senden (Einstellungen → Über).</translation>
+    </message>
+    <message>
+        <location filename="../src/camera/uvcdevice.cpp" line="172"/>
+        <source>UVC camera found but not accessible (%1). The permission rule is missing — reinstall the app and replug the camera.</source>
+        <translation>UVC-Kamera gefunden, aber nicht zugänglich (%1). Die Berechtigungsregel fehlt — App neu installieren und Kamera neu einstecken.</translation>
+    </message>
+    <message>
+        <location filename="../src/camera/uvcdevice.cpp" line="260"/>
+        <source>Could not open the UVC camera (%1).</source>
+        <translation>UVC-Kamera konnte nicht geöffnet werden (%1).</translation>
+    </message>
+    <message>
+        <location filename="../src/camera/uvcdevice.cpp" line="309"/>
+        <source>The UVC camera offers neither YUYV nor MJPEG.</source>
+        <translation>Die UVC-Kamera bietet weder YUYV noch MJPEG an.</translation>
+    </message>
+    <message>
+        <location filename="../src/camera/uvcdevice.cpp" line="317"/>
+        <source>Could not start the UVC video stream.</source>
+        <translation>UVC-Videostream konnte nicht gestartet werden.</translation>
     </message>
 </context>
 <context>
@@ -675,145 +700,175 @@ Diese Kameras sind keine UVC-Geräte. Deshalb bindet kein Kerneltreiber sie, und
 <context>
     <name>SpecsPage</name>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="14"/>
-        <location filename="../qml/pages/SpecsPage.qml" line="53"/>
-        <location filename="../qml/pages/SpecsPage.qml" line="63"/>
-        <location filename="../qml/pages/SpecsPage.qml" line="75"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="15"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="54"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="64"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="76"/>
         <source>unknown</source>
         <translation>unbekannt</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="27"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="28"/>
         <source>Camera specs</source>
         <translation>Technische Daten</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="29"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="30"/>
         <source>no camera connected</source>
         <translation>keine Kamera verbunden</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="39"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="40"/>
         <source>Connect the camera and start it; the device details below are read from the camera itself when it is opened.</source>
         <translation>Kamera anschließen und starten — die Gerätedaten unten werden beim Öffnen direkt aus der Kamera gelesen.</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="44"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="45"/>
         <source>Device</source>
         <translation>Gerät</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="46"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="47"/>
         <source>Manufacturer</source>
         <translation>Hersteller</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="47"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="48"/>
         <source>Product</source>
         <translation>Produkt</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="48"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="49"/>
         <source>Serial</source>
         <translation>Seriennummer</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="50"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="51"/>
         <source>USB ID</source>
         <translation>USB-ID</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="55"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="56"/>
         <source>Hardware revision</source>
         <translation>Hardware-Revision</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="56"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="57"/>
         <source>USB version</source>
         <translation>USB-Version</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="57"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="58"/>
         <source>Link speed</source>
         <translation>Übertragungsrate</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="58"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="59"/>
         <source>Power draw</source>
         <translation>Stromaufnahme</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="60"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="61"/>
         <source>Bus / address</source>
         <translation>Bus / Adresse</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="66"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="67"/>
         <source>USB interfaces</source>
         <translation>USB-Schnittstellen</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="83"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="85"/>
+        <source>Class 0e is USB Video Class. The kernel&apos;s uvcvideo driver runs the camera; PipeCam reads its video device and sets no camera controls.</source>
+        <translation>Klasse 0e ist USB Video Class. Der Kerneltreiber uvcvideo betreibt die Kamera; PipeCam liest ihr Videogerät und setzt keine Kamera-Regler.</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/SpecsPage.qml" line="96"/>
         <source>Class ff is “vendor specific”. That is why Linux&apos;s built-in UVC driver never binds this camera and no /dev/video node appears — the device only looks like a webcam from the outside.</source>
         <translation>Klasse ff bedeutet „herstellerspezifisch“. Deshalb bindet der in Linux eingebaute UVC-Treiber diese Kamera nie und es entsteht kein /dev/video-Knoten — das Gerät sieht nur von außen wie eine Webcam aus.</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="89"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="102"/>
         <source>Video stream</source>
         <translation>Videostrom</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="91"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="104"/>
         <source>Resolution</source>
         <translation>Auflösung</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="93"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="106"/>
         <source>Format</source>
         <translation>Format</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="95"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="108"/>
         <source>Frame rate now</source>
         <translation>Aktuelle Bildrate</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="97"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="110"/>
         <source>not streaming</source>
         <translation>kein Bildstrom</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="99"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="112"/>
         <source>Typical rate</source>
         <translation>Typische Bildrate</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="99"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="112"/>
         <source>about 11–15 fps</source>
         <translation>etwa 11–15 fps</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="100"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="113"/>
         <source>Frame size</source>
         <translation>Bildgröße</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="100"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="113"/>
         <source>about 8–30 kB per frame</source>
         <translation>etwa 8–30 kB pro Bild</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="101"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="114"/>
         <source>Frames so far</source>
         <translation>Bilder bisher</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="103"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="115"/>
+        <source>Video device</source>
+        <translation>Videogerät</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/SpecsPage.qml" line="118"/>
+        <source>Button input</source>
+        <translation>Tasten-Eingabe</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/SpecsPage.qml" line="119"/>
+        <source>none</source>
+        <translation>keine</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/SpecsPage.qml" line="128"/>
+        <source>The kernel creates a button input device only if the camera declares its button in the USB descriptors (bTriggerSupport, bTriggerUsage).</source>
+        <translation>Der Kernel legt ein Eingabegerät für die Taste nur an, wenn die Kamera ihre Taste in den USB-Deskriptoren meldet (bTriggerSupport, bTriggerUsage).</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/SpecsPage.qml" line="133"/>
+        <source>Offered formats</source>
+        <translation>Angebotene Formate</translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/SpecsPage.qml" line="148"/>
         <source>Protocol</source>
         <translation>Protokoll</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="111"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="156"/>
         <source>Undocumented vendor protocol, reverse engineered. Two commands are known:
 
     FF 55 FF 55 EE 10   initialise (control out)
@@ -828,62 +883,62 @@ Each 1024-byte packet is a 5-byte USB header, a 7-byte camera header and a slice
 Jedes 1024-Byte-Paket besteht aus 5 Byte USB-Kopf, 7 Byte Kamera-Kopf und einem Stück JPEG. Bilder werden durch den Wechsel des Frame-ID-Bytes abgegrenzt — nicht durch die Suche nach JPEG-Markern, was der Fehler ist, der halb graue Bilder erzeugt.</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="122"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="167"/>
         <source>What the header fields mean</source>
         <translation>Bedeutung der Kopf-Felder</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="124"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="169"/>
         <source>Camera id</source>
         <translation>Kamera-ID</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="124"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="169"/>
         <source>always 7 here (11 never seen)</source>
         <translation>hier immer 7 (11 nie gesehen)</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="125"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="170"/>
         <source>cam_num</source>
         <translation>cam_num</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="125"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="170"/>
         <source>toggles 0/1 per frame</source>
         <translation>wechselt 0/1 pro Bild</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="126"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="171"/>
         <source>flags bit 1</source>
         <translation>flags Bit 1</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="126"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="171"/>
         <source>push-button on the cable</source>
         <translation>Taster am Kabel</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="127"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="172"/>
         <source>32-bit field</source>
         <translation>32-Bit-Feld</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="127"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="172"/>
         <source>cycles through 4 fixed values — unknown</source>
         <translation>zykliert durch 4 feste Werte — unbekannt</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="135"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="180"/>
         <source>The reference implementation this was ported from describes camera id 7 and 11 as two halves of one frame, and the 32-bit field as a g-sensor. Neither matches what this device does: id 7 alone yields complete images, and the 32-bit field cycles through the same four values on a motionless cable.</source>
         <translation>Die Referenz-Implementierung, von der hier portiert wurde, beschreibt Kamera-ID 7 und 11 als zwei Hälften eines Bildes und das 32-Bit-Feld als Lagesensor. Beides passt nicht zu diesem Gerät: ID 7 allein liefert vollständige Bilder, und das 32-Bit-Feld zykliert bei unbewegtem Kabel durch immer dieselben vier Werte.</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="144"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="189"/>
         <source>Lighting</source>
         <translation>Beleuchtung</translation>
     </message>
     <message>
-        <location filename="../qml/pages/SpecsPage.qml" line="152"/>
+        <location filename="../qml/pages/SpecsPage.qml" line="197"/>
         <source>The LED ring cannot be controlled from the phone. Measured: 60 seconds of capture while the cable&apos;s dimmer wheel was turned produced no change in any header field and not one byte on the control endpoint — while a button press in the same run showed up immediately. The wheel is an analogue potentiometer in the LED supply and the firmware never sees it.
 
 The brightness bar in the viewfinder therefore brightens the picture, not the lamp.</source>
@@ -903,27 +958,27 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCamera</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="846"/>
+        <location filename="../src/camera/uppcamera.cpp" line="951"/>
         <source>Off</source>
         <translation>Aus</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="847"/>
+        <location filename="../src/camera/uppcamera.cpp" line="952"/>
         <source>Looking for camera…</source>
         <translation>Suche Kamera…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="848"/>
+        <location filename="../src/camera/uppcamera.cpp" line="953"/>
         <source>Connecting…</source>
         <translation>Verbinde…</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="849"/>
+        <location filename="../src/camera/uppcamera.cpp" line="954"/>
         <source>Live</source>
         <translation>Live</translation>
     </message>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="850"/>
+        <location filename="../src/camera/uppcamera.cpp" line="955"/>
         <source>Problem</source>
         <translation>Problem</translation>
     </message>
@@ -931,7 +986,7 @@ Die Helligkeitsleiste im Sucher hellt deshalb das Bild auf, nicht die Lampe.</tr
 <context>
     <name>UppCameraWorker</name>
     <message>
-        <location filename="../src/camera/uppcamera.cpp" line="723"/>
+        <location filename="../src/camera/uppcamera.cpp" line="815"/>
         <source>USB subsystem unavailable.</source>
         <translation>USB-Subsystem nicht verfügbar.</translation>
     </message>

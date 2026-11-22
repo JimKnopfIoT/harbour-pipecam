@@ -5,6 +5,7 @@
 #include "uppprotocol.h"
 #include "uppvariant.h"
 #include "yuyvassembler.h"
+#include "uvcdevice.h"
 #include "diaglog.h"
 
 #include <libusb-1.0/libusb.h>
@@ -13,6 +14,7 @@
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QStringList>
+#include <QVector>
 
 static const int RETRY_DELAY_MS = 1000;
 /* Also the stop-request latency; keep <= ~1 s. */
@@ -395,11 +397,11 @@ void UppCameraWorker::streamLoop(libusb_context *ctx, libusb_device_handle *h)
 }
 
 /* YUY2 -> RGB32, OpenCV COLOR_YUV2BGR_YUY2 coefficients, 16.16 fixed point. */
-static QImage yuyvToImage(const unsigned char *src, int w, int h)
+static QImage yuyvToImage(const unsigned char *src, int w, int h, int stride)
 {
     QImage img(w, h, QImage::Format_RGB32);
     for (int y = 0; y < h; ++y) {
-        const unsigned char *s = src + y * w * 2;
+        const unsigned char *s = src + y * stride;
         QRgb *d = reinterpret_cast<QRgb *>(img.scanLine(y));
         for (int x = 0; x < w; x += 2, s += 4) {
             const int u = s[1] - 128;
@@ -586,21 +588,7 @@ void UppCameraWorker::streamLoopYuyv(libusb_context *ctx, libusb_device_handle *
             continue;
         s.hasReady = false;
         work.swap(s.ready);
-        const int w = s.readyW, hh = s.readyH;
-
-        QImage img = yuyvToImage(work.data(), w, hh);
-
-        /* Encode before gain, like MJPEG originals. Quality 90 as MjpegRecorder. */
-        QByteArray jpeg;
-        {
-            QBuffer buf(&jpeg);
-            buf.open(QIODevice::WriteOnly);
-            img.save(&buf, "JPEG", 90);
-        }
-        if (++emitted == 1)
-            qInfo() << "pipecam: first yuyv frame," << w << "x" << hh << "," << jpeg.size() << "bytes jpeg";
-        applyGain(&img);
-        emit frameReady(img, jpeg);
+        emitYuyv(work.data(), s.readyW, s.readyH, s.readyW * 2, &emitted);
     }
 
     if (s.fatal)
@@ -626,6 +614,110 @@ void UppCameraWorker::streamLoopYuyv(libusb_context *ctx, libusb_device_handle *
     for (size_t i = 0; i < xfers.size(); ++i)
         libusb_free_transfer(xfers[i]);
     delete &s;
+}
+
+/* Encode before gain, like MJPEG originals. Quality 90 as MjpegRecorder. */
+static QByteArray encodeJpeg(const QImage &img)
+{
+    QByteArray jpeg;
+    QBuffer buf(&jpeg);
+    buf.open(QIODevice::WriteOnly);
+    img.save(&buf, "JPEG", 90);
+    return jpeg;
+}
+
+void UppCameraWorker::emitYuyv(const unsigned char *src, int w, int h, int stride, int *emitted)
+{
+    QImage img = yuyvToImage(src, w, h, stride);
+    const QByteArray jpeg = encodeJpeg(img);
+    if (++*emitted == 1)
+        qInfo() << "pipecam: first yuyv frame," << w << "x" << h << "," << jpeg.size() << "bytes jpeg";
+    applyGain(&img);
+    emit frameReady(img, jpeg);
+}
+
+void UppCameraWorker::setButton(bool pressed)
+{
+    if (pressed == m_lastButton)
+        return;
+    m_lastButton = pressed;
+    emit buttonChanged(pressed);
+}
+
+/* No frame for this long: unplugged or stalled, reopen. */
+static const int UVC_SILENCE_MS = 5000;
+
+void UppCameraWorker::runUvc(const uvc::Candidate &c, QString *lastLogged)
+{
+    emit statusChanged(UppCamera::Connecting, QString());
+    PIPECAM_TRACE(QStringLiteral("uvc: %1:%2 at %3, %4 \"%5\"")
+                  .arg(c.usb.vid, 4, 16, QChar('0')).arg(c.usb.pid, 4, 16, QChar('0'))
+                  .arg(c.usb.sysName, c.node, c.card));
+
+    uvc::Stream s;
+    UserText err;
+    if (!s.open(c, &err)) {
+        if (err.log != *lastLogged) {
+            qWarning() << "pipecam: uvc open failed:" << err.log;
+            *lastLogged = err.log;
+        }
+        emit statusChanged(UppCamera::Error, err.ui);
+        for (int i = 0; i < RETRY_DELAY_MS / 100 && !m_stop.loadAcquire(); ++i)
+            msleep(100);
+        return;
+    }
+    emit deviceInfoReady(s.deviceInfo(c));
+    qInfo() << "pipecam: uvc streaming" << c.node << s.formatName() << s.width() << "x" << s.height()
+            << ", button input" << (s.buttonNode().isEmpty() ? QStringLiteral("none") : s.buttonNode());
+    lastLogged->clear();
+    emit statusChanged(UppCamera::Streaming, QString());
+
+    int emitted = 0;
+    int silentMs = 0;
+    int reencoded = 0;
+    QVector<bool> buttons;
+    while (!m_stop.loadAcquire()) {
+        buttons.clear();
+        const uvc::Stream::Result r = s.next(250, &buttons);
+        for (int i = 0; i < buttons.size(); ++i)
+            setButton(buttons.at(i));
+        if (r == uvc::Stream::Gone)
+            break;
+        if (r == uvc::Stream::Timeout) {
+            silentMs += 250;
+            if (silentMs >= UVC_SILENCE_MS) {
+                qInfo() << "pipecam: uvc: no frame for" << UVC_SILENCE_MS << "ms, reopening";
+                break;
+            }
+            continue;
+        }
+        silentMs = 0;
+
+        if (!s.isMjpeg()) {
+            emitYuyv(s.data(), s.width(), s.height(), s.stride(), &emitted);
+            continue;
+        }
+        QByteArray jpeg(reinterpret_cast<const char *>(s.data()), s.bytes());
+        QImage img = QImage::fromData(jpeg, "JPEG");
+        if (img.isNull())
+            continue;
+        /* No DHT: decoders differ, snapshot and MP4 get a complete JPEG. */
+        if (!uvc::jpegHasDht(s.data(), s.bytes())) {
+            jpeg = encodeJpeg(img);
+            ++reencoded;
+        }
+        if (++emitted == 1)
+            qInfo() << "pipecam: first uvc mjpeg frame," << s.bytes() << "bytes," << img.width() << "x"
+                    << img.height() << (reencoded ? ", no DHT, re-encoded" : "");
+        applyGain(&img);
+        emit frameReady(img, jpeg);
+    }
+    qInfo() << "pipecam: uvc stream ended after" << emitted << "frames";
+    s.close();
+    setButton(false);
+    /* node removal races the next scan */
+    for (int i = 0; i < 5 && !m_stop.loadAcquire(); ++i)
+        msleep(100);
 }
 
 void UppCameraWorker::teardown(libusb_device_handle *h)
@@ -735,6 +827,19 @@ void UppCameraWorker::run()
         emit statusChanged(UppCamera::Searching, QString());
         setLibusbVerbose(ctx, DiagLog::isVerbose());
         int rc = openDevice(ctx, &h, &err);
+        if (rc == LIBUSB_ERROR_NO_DEVICE) {
+            uvc::Candidate c;
+            UserText uerr;
+            const uvc::ScanResult sr = uvc::scan(&c, &uerr);
+            if (sr == uvc::Found) {
+                runUvc(c, &lastLogged);
+                continue;
+            }
+            if (sr != uvc::None) {
+                err = uerr;
+                rc = LIBUSB_ERROR_ACCESS;   /* -> Error status */
+            }
+        }
         if (rc != 0) {
             if (err.log != lastLogged) {
                 qInfo() << "pipecam: open:" << libusb_error_name(rc) << "-" << err.log;

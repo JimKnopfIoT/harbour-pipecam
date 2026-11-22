@@ -4,6 +4,7 @@
 #include "usbdump.h"
 #include "uppprotocol.h"
 #include "uppvariant.h"
+#include "uvcdevice.h"
 
 #include <libusb-1.0/libusb.h>
 
@@ -44,6 +45,22 @@ static bool isCamera(const libusb_device_descriptor &d)
         if (d.idVendor == upp::KNOWN_DEVICES[i].vid && d.idProduct == upp::KNOWN_DEVICES[i].pid)
             return true;
     return false;
+}
+
+static bool isUvc(libusb_device *dev, const libusb_device_descriptor &d)
+{
+    if (isCamera(d))
+        return false;
+    libusb_config_descriptor *cfg = 0;
+    if (libusb_get_active_config_descriptor(dev, &cfg) != 0 || !cfg)
+        return false;
+    bool uvc = false;
+    for (int i = 0; i < cfg->bNumInterfaces && !uvc; ++i) {
+        const libusb_interface &itf = cfg->interface[i];
+        uvc = itf.num_altsetting > 0 && itf.altsetting[0].bInterfaceClass == 0x0e;
+    }
+    libusb_free_config_descriptor(cfg);
+    return uvc;
 }
 
 /* e.g. "1-1.2" under /sys/bus/usb/devices */
@@ -110,8 +127,96 @@ static QString stringDesc(libusb_device_handle *h, uint8_t idx, QStringList *col
     return QStringLiteral("\"%1\"").arg(s);
 }
 
+static QString hexBytes(const unsigned char *p, int n)
+{
+    QString s;
+    for (int i = 0; i < n; ++i)
+        s += QString::asprintf("%02x ", p[i]);
+    return s.trimmed();
+}
+
+/* Class-specific VideoStreaming descriptors (UVC 1.1, 3.9). */
+static void dumpUvcExtra(QTextStream &o, const unsigned char *p, int n)
+{
+    int i = 0;
+    while (i + 3 <= n) {
+        const int len = p[i];
+        if (len < 3 || i + len > n)
+            break;
+        const unsigned char *q = p + i;
+        if (q[1] == 0x24) {
+            switch (q[2]) {
+            case 0x01:  /* VS_INPUT_HEADER */
+                if (len >= 13)
+                    o << "      VS input header: bNumFormats " << int(q[3]) << ", bEndpointAddress 0x"
+                      << hex(q[6], 2) << ", bStillCaptureMethod " << int(q[9])
+                      << ", bTriggerSupport " << int(q[10]) << ", bTriggerUsage " << int(q[11]) << '\n';
+                break;
+            case 0x04:  /* VS_FORMAT_UNCOMPRESSED */
+                if (len >= 22)
+                    o << "      format " << int(q[3]) << ": uncompressed "
+                      << QString::fromLatin1(reinterpret_cast<const char *>(q + 5), 4).replace(QChar(0), QChar('.'))
+                      << ", " << int(q[21]) << " bit/pixel, " << int(q[4]) << " frame(s)\n";
+                break;
+            case 0x06:  /* VS_FORMAT_MJPEG */
+                if (len >= 5)
+                    o << "      format " << int(q[3]) << ": MJPEG, " << int(q[4]) << " frame(s)\n";
+                break;
+            case 0x05:  /* VS_FRAME_UNCOMPRESSED */
+            case 0x07:  /* VS_FRAME_MJPEG */
+                if (len >= 26) {
+                    const int w = q[5] | (q[6] << 8), h = q[7] | (q[8] << 8);
+                    const quint32 iv = quint32(q[21]) | (quint32(q[22]) << 8) | (quint32(q[23]) << 16)
+                            | (quint32(q[24]) << 24);
+                    o << "        frame " << int(q[3]) << ": " << w << 'x' << h << ", default interval "
+                      << iv << " (" << (iv ? QString::number(10000000.0 / iv, 'f', 1) : QStringLiteral("-"))
+                      << " fps)\n";
+                }
+                break;
+            default:
+                o << "      cs descriptor 0x" << hex(q[2], 2) << ": " << hexBytes(q, len) << '\n';
+                break;
+            }
+        }
+        i += len;
+    }
+}
+
+static void dumpUvcSide(QTextStream &o, libusb_device *dev, Result *r)
+{
+    QList<uvc::UsbDevice> devs = uvc::usbDevices();
+    const QString sys = sysName(dev);
+    for (const uvc::UsbDevice &u : devs) {
+        if (u.sysName != sys)
+            continue;
+        const QString serial = uvc::sysAttr(u.sysDir, "serial");
+        if (!serial.isEmpty())
+            r->serials << serial;
+        o << "UVC side:\n"
+          << "  uvcvideo driver registered: "
+          << (QFile::exists(QStringLiteral("/sys/bus/usb/drivers/uvcvideo")) ? "yes" : "no") << '\n';
+        const QStringList video = uvc::videoNodes(u);
+        if (video.isEmpty())
+            o << "  no video4linux node\n";
+        for (const QString &n : video) {
+            const QString name = uvc::sysAttr(QStringLiteral("/sys/class/video4linux/")
+                                              + QFileInfo(n).fileName(), "name");
+            o << "  " << nodeInfo(n) << ", name \"" << name << "\"\n";
+            r->nodes << n;
+        }
+        const QStringList input = uvc::inputNodes(u);
+        if (input.isEmpty())
+            o << "  no input device (button events need bTriggerSupport=1, bTriggerUsage=1)\n";
+        for (const QString &n : input) {
+            const QString name = uvc::sysAttr(QStringLiteral("/sys/class/input/")
+                                              + QFileInfo(n).fileName() + QStringLiteral("/device"), "name");
+            o << "  " << nodeInfo(n) << ", name \"" << name << "\"\n";
+        }
+    }
+}
+
 static void dumpCamera(QTextStream &o, libusb_device *dev, const libusb_device_descriptor &d,
-                       bool claimTest, Result *r)
+                       bool claimTest, Result *r, bool upp = true)
 {
     const QString sys = sysName(dev);
     const QString node = QStringLiteral("/dev/bus/usb/%1/%2")
@@ -119,7 +224,7 @@ static void dumpCamera(QTextStream &o, libusb_device *dev, const libusb_device_d
             .arg(libusb_get_device_address(dev), 3, 10, QChar('0'));
     r->nodes << node;
 
-    o << "Camera " << hex(d.idVendor, 4) << ':' << hex(d.idProduct, 4)
+    o << (upp ? "Camera " : "UVC camera ") << hex(d.idVendor, 4) << ':' << hex(d.idProduct, 4)
       << " at " << sys << ", speed " << speedName(libusb_get_device_speed(dev)) << '\n';
     o << "  " << nodeInfo(node) << '\n';
 
@@ -168,6 +273,8 @@ static void dumpCamera(QTextStream &o, libusb_device *dev, const libusb_device_d
                       << epType(ep.bmAttributes) << ", wMaxPacketSize " << ep.wMaxPacketSize
                       << ", bInterval " << int(ep.bInterval) << '\n';
                 }
+                if (!upp && id.bInterfaceClass == 0x0e && id.bInterfaceSubClass == 0x02 && id.extra_length > 0)
+                    dumpUvcExtra(o, id.extra, id.extra_length);
             }
             /* "usbfs" = a libusb user */
             const QString ifDir = QStringLiteral("/sys/bus/usb/devices/%1:%2.%3")
@@ -194,8 +301,13 @@ static void dumpCamera(QTextStream &o, libusb_device *dev, const libusb_device_d
           << (grc == 0 ? QString::number(cur) : QString::fromLatin1(libusb_error_name(grc))) << '\n';
     }
 
+    if (!upp) {
+        dumpUvcSide(o, dev, r);
+        claimTest = false;  /* would detach uvcvideo */
+    }
+
     upp::Variant variant = upp::VariantUnknown;
-    {
+    if (upp) {
         libusb_config_descriptor *cfg = 0;
         if (libusb_get_active_config_descriptor(dev, &cfg) == 0 && cfg) {
             variant = upp::variantOf(cfg);
@@ -264,7 +376,7 @@ Result dump(bool claimTest)
         /* IDs and class only: other devices' strings may identify the user */
         o << "  " << sysName(list[i]) << "  " << hex(d.idVendor, 4) << ':' << hex(d.idProduct, 4)
           << "  class " << hex(d.bDeviceClass, 2) << "  " << speedName(libusb_get_device_speed(list[i]))
-          << (isCamera(d) ? "  <- camera" : "") << '\n';
+          << (isCamera(d) ? "  <- camera" : isUvc(list[i], d) ? "  <- UVC camera" : "") << '\n';
     }
 
     int cams = 0;
@@ -274,6 +386,14 @@ Result dump(bool claimTest)
             continue;
         o << '\n';
         dumpCamera(o, list[i], d, claimTest, &r);
+        ++cams;
+    }
+    for (ssize_t i = 0; i < n; ++i) {
+        libusb_device_descriptor d;
+        if (libusb_get_device_descriptor(list[i], &d) != 0 || !isUvc(list[i], d))
+            continue;
+        o << '\n';
+        dumpCamera(o, list[i], d, false, &r, false);
         ++cams;
     }
     if (!cams)

@@ -1,6 +1,6 @@
 Name:       harbour-pipecam
 Summary:    Viewer and recorder for USB pipe inspection cameras
-Version:    0.1.5
+Version:    0.1.6
 Release:    1
 # Neutral BUILDHOST tag instead of the build machine's hostname.
 %define _buildhost reproducible-builder
@@ -28,6 +28,9 @@ cameras of the "com.useeplus.protocol" family (sold as USeePlus, Geek szitman,
 supercamera). These cameras announce themselves as vendor-class devices rather
 than UVC, so no kernel driver binds them and no /dev/video node appears;
 PipeCam speaks their protocol directly over libusb.
+
+USB Video Class pipe cameras (uvcvideo, /dev/video) are used as a fallback
+when no such device is connected, with the same user interface.
 
 Snapshots are written as the camera's own untouched JPEG bytes and recordings
 are muxed straight into MP4, so nothing is ever re-encoded. Everything runs
@@ -75,6 +78,12 @@ fi
 %{_datadir}/polkit-1/rules.d/50-harbour-pipecam.rules
 
 %changelog
+* Sun Nov 22 2026 harbour-pipecam contributors 0.1.6-1
+- UVC cameras via uvcvideo when no USeePlus device is connected: YUYV, else
+  MJPEG; button via the uvcvideo input device (KEY_CAMERA), if present (#2).
+- udev: USB video4linux nodes to group video.
+- Diagnostic report lists UVC devices, nodes and trigger descriptor fields.
+
 * Sun Oct 04 2026 harbour-pipecam contributors 0.1.5-1
 - Single-interface variant: cable button works (frame header byte 7, 0x02)
   (#1).

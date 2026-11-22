@@ -7,6 +7,7 @@ Viewer and recorder for USB-C pipe inspection cameras on Sailfish OS.
 ![Viewfinder](media/viewfinder.png)
 
 - Vendor-class USB device, no kernel driver, no `/dev/video`. Spoken to directly via `libusb`.
+- No such device connected: UVC camera via `uvcvideo` (`/dev/videoN`), same UI.
 - No network code.
 
 ## Supported hardware
@@ -19,7 +20,15 @@ Viewer and recorder for USB-C pipe inspection cameras on Sailfish OS.
 | Variant | Descriptor | Stream | Cable button | Status |
 |---------|------------|--------|--------------|--------|
 | MJPEG | 2 interfaces (`bcdDevice 1.00`) | 640 × 480 MJPEG, 11–15 fps | yes | verified |
-| YUYV | 1 interface, bulk `0x82`/`0x02` (`bcdDevice 1.11`) | 320 × 240 YUYV | no | untested on hardware |
+| YUYV | 1 interface, bulk `0x82`/`0x02` (`bcdDevice 1.11`) | 640 × 480 YUYV | yes | field-tested (#1) |
+| UVC | class `0e`, kernel `uvcvideo` | YUYV, else MJPEG; 640 × 480 or closest | `KEY_CAMERA` input device, if present | untested on a pipe camera |
+
+UVC:
+
+- Requires `CONFIG_USB_VIDEO_CLASS` in the phone kernel. Diagnostic report: `uvcvideo driver registered`.
+- No UVC controls set (receive only).
+- Button: `uvcvideo` creates the input device only for `bTriggerSupport = 1` and `bTriggerUsage = 1` (VS input header, listed in the diagnostic report).
+- MJPEG frames without DHT segment are re-encoded for snapshot and video.
 
 ## Features
 
@@ -69,13 +78,14 @@ Stream on bulk IN `0x81`, 1024-byte packets:
 ## USB permissions
 
 - udev rule for both IDs, `0666`. Prefix `999-`: `999-android-system.rules` resets all USB nodes to `0660 root:usb`; last match wins.
+- USB `video4linux` nodes: group `video`, `0660`. `999-android-system.rules` sets every `video*` to `0660 camera:system`. Built-in nodes not matched.
 - `.desktop`: `Sandboxing=Disabled`. No Sailjail permission grants raw USB; without the key the default profile still applies (PID namespace, no-new-privileges, seccomp).
 
 ## Diagnostic report
 
 Settings → About → **Create diagnostic report**, or `harbour-pipecam --report [--root]`.
 
-- Contents: versions, OS, phone model, USB descriptor tree, detected variant, interface drivers, node permissions, Type-C role, claim test, app log.
+- Contents: versions, OS, phone model, USB descriptor tree, detected variant, interface drivers, node permissions, Type-C role, claim test, app log. UVC: VS descriptors (formats, frames, trigger fields), video and input nodes; no claim test.
 - Removed on the device: serial numbers, host name, user name, home directory, MAC/IP/e-mail addresses, IMEI-length numbers.
 - **Verbose log**: adds libusb messages; written to `~/.cache/harbour-pipecam/pipecam.log`, kept across a crash.
 - **Include root data**: read-only `harbour-pipecam-helper.service` (polkit-scoped, not started at boot, exits when unused): holders of the camera node, kernel USB table, kernel and journal lines about USB.
@@ -99,8 +109,8 @@ Then replug the camera or run `udevadm trigger --subsystem-match=usb`.
 - MJPEG protocol: `ProbeView` and community Linux drivers for this camera family
 - YUYV variant: [Endoscope_Viewer](https://github.com/Bognabon/Endoscope_Viewer), [supercamera-yuyv-linux](https://github.com/KlumpRasmus/supercamera-yuyv-linux)
 
-LLM assisted development
-
 ## Licence
 
 GPL-3.0-or-later, no warranty. See [LICENSE](LICENSE).
+
+LLM assisted development

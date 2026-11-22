@@ -9,6 +9,7 @@
 #include "roothelper.h"
 #include "rootclient.h"
 #include "uppprotocol.h"
+#include "uvcdevice.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -37,11 +38,25 @@ QByteArray readAll(const QString &path)
     return f.open(QIODevice::ReadOnly) ? f.readAll().trimmed() : QByteArray();
 }
 
+/* USeePlus IDs plus every UVC device on the bus */
+QList<upp::DeviceId> cameraIds()
+{
+    QList<upp::DeviceId> ids;
+    for (int i = 0; i < upp::KNOWN_DEVICE_COUNT; ++i)
+        ids << upp::KNOWN_DEVICES[i];
+    for (const uvc::UsbDevice &d : uvc::usbDevices()) {
+        upp::DeviceId id;
+        id.vid = quint16(d.vid);
+        id.pid = quint16(d.pid);
+        ids << id;
+    }
+    return ids;
+}
+
 bool isCameraId(const QByteArray &vid, const QByteArray &pid)
 {
-    for (int i = 0; i < upp::KNOWN_DEVICE_COUNT; ++i) {
-        if (vid.toInt(0, 16) == upp::KNOWN_DEVICES[i].vid &&
-            pid.toInt(0, 16) == upp::KNOWN_DEVICES[i].pid)
+    for (const upp::DeviceId &id : cameraIds()) {
+        if (vid.toInt(0, 16) == id.vid && pid.toInt(0, 16) == id.pid)
             return true;
     }
     return false;
@@ -60,6 +75,8 @@ QStringList cameraNodes()
                .arg(readAll(b + "/busnum").toInt(), 3, 10, QChar('0'))
                .arg(readAll(b + "/devnum").toInt(), 3, 10, QChar('0'));
     }
+    for (const uvc::UsbDevice &d : uvc::usbDevices())
+        out << uvc::videoNodes(d);
     return out;
 }
 
@@ -114,11 +131,12 @@ QByteArray cmdUsbTable()
         return "debugfs usb/devices not available\n";
     QByteArray out;
     const QStringList blocks = QString::fromLatin1(f.readAll()).split(QStringLiteral("\n\n"));
+    const QList<upp::DeviceId> ids = cameraIds();
     for (const QString &block : blocks) {
-        for (int i = 0; i < upp::KNOWN_DEVICE_COUNT; ++i) {
+        for (const upp::DeviceId &id : ids) {
             const QString tag = QStringLiteral("Vendor=%1 ProdID=%2")
-                    .arg(upp::KNOWN_DEVICES[i].vid, 4, 16, QChar('0'))
-                    .arg(upp::KNOWN_DEVICES[i].pid, 4, 16, QChar('0'));
+                    .arg(id.vid, 4, 16, QChar('0'))
+                    .arg(id.pid, 4, 16, QChar('0'));
             if (block.contains(tag)) {
                 out += block.trimmed().toLatin1() + "\n\n";
                 break;
@@ -133,7 +151,7 @@ bool aboutUsb(const QByteArray &line)
 {
     static const QRegularExpression re(
         QStringLiteral("\\b(usb|usbfs|usbcore|usbhid|xhci[-_a-z0-9]*|ehci[-_a-z0-9]*|dwc3|mtu3|ssusb|"
-                       "typec|ucsi|2ce3|0329|pipecam|supercamera)\\b|libusb|geek szitman"),
+                       "typec|ucsi|2ce3|0329|pipecam|supercamera|uvcvideo|uvc)\\b|libusb|geek szitman"),
         QRegularExpression::CaseInsensitiveOption);
     return re.match(QString::fromLocal8Bit(line)).hasMatch();
 }
@@ -204,10 +222,10 @@ QByteArray cmdLsusb()
     if (bin.isEmpty())
         return "lsusb not installed (package usbutils)\n";
     QByteArray out;
-    for (int i = 0; i < upp::KNOWN_DEVICE_COUNT; ++i) {
+    for (const upp::DeviceId &d : cameraIds()) {
         const QString id = QStringLiteral("%1:%2")
-                .arg(upp::KNOWN_DEVICES[i].vid, 4, 16, QChar('0'))
-                .arg(upp::KNOWN_DEVICES[i].pid, 4, 16, QChar('0'));
+                .arg(d.vid, 4, 16, QChar('0'))
+                .arg(d.pid, 4, 16, QChar('0'));
         QProcess p;
         p.start(bin, QStringList() << QStringLiteral("-v") << QStringLiteral("-d") << id);
         if (p.waitForFinished(5000))

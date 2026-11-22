@@ -8,6 +8,7 @@ Page {
 
     readonly property var info: app.camera.deviceInfo
     readonly property bool haveDevice: info && info.product !== undefined
+    readonly property bool uvc: haveDevice && info.transport === "uvc"
 
     function val(key, fallback) {
         if (!info || info[key] === undefined || info[key] === "")
@@ -75,6 +76,18 @@ Page {
                 text: page.val("interfaces", qsTr("unknown"))
             }
             Label {
+                visible: page.uvc
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                wrapMode: Text.Wrap
+                font.pixelSize: Theme.fontSizeExtraSmall
+                color: Theme.secondaryColor
+                text: qsTr("Class 0e is USB Video Class. The kernel's uvcvideo "
+                           + "driver runs the camera; PipeCam reads its video "
+                           + "device and sets no camera controls.")
+            }
+            Label {
+                visible: !page.uvc
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 wrapMode: Text.Wrap
@@ -96,69 +109,102 @@ Page {
                 value: app.camera.streaming ? app.camera.fps.toFixed(1) + " fps"
                                             : qsTr("not streaming")
             }
-            DetailItem { label: qsTr("Typical rate");  value: qsTr("about 11–15 fps") }
-            DetailItem { label: qsTr("Frame size");    value: qsTr("about 8–30 kB per frame") }
+            DetailItem { visible: !page.uvc; label: qsTr("Typical rate");  value: qsTr("about 11–15 fps") }
+            DetailItem { visible: !page.uvc; label: qsTr("Frame size");    value: qsTr("about 8–30 kB per frame") }
             DetailItem { label: qsTr("Frames so far"); value: app.camera.frameCount }
-
-            SectionHeader { text: qsTr("Protocol") }
-
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                wrapMode: Text.Wrap
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.secondaryColor
-                text: qsTr("Undocumented vendor protocol, reverse engineered. "
-                           + "Two commands are known:\n\n"
-                           + "    FF 55 FF 55 EE 10   initialise (control out)\n"
-                           + "    BB AA 05 00 00      connect (stream out)\n\n"
-                           + "Each 1024-byte packet is a 5-byte USB header, a "
-                           + "7-byte camera header and a slice of JPEG. Frames "
-                           + "are delimited by the frame-id byte changing — not "
-                           + "by searching for JPEG markers, which is the "
-                           + "mistake that produces half-grey pictures.")
+            DetailItem { visible: page.uvc; label: qsTr("Video device"); value: page.val("videoNode") }
+            DetailItem {
+                visible: page.uvc
+                label: qsTr("Button input")
+                value: page.val("buttonNode", qsTr("none"))
             }
-
-            SectionHeader { text: qsTr("What the header fields mean") }
-
-            DetailItem { label: qsTr("Camera id"); value: qsTr("always 7 here (11 never seen)") }
-            DetailItem { label: qsTr("cam_num");   value: qsTr("toggles 0/1 per frame") }
-            DetailItem { label: qsTr("flags bit 1"); value: qsTr("push-button on the cable") }
-            DetailItem { label: qsTr("32-bit field"); value: qsTr("cycles through 4 fixed values — unknown") }
-
             Label {
+                visible: page.uvc && !page.info.buttonNode
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 wrapMode: Text.Wrap
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: Theme.secondaryColor
-                text: qsTr("The reference implementation this was ported from "
-                           + "describes camera id 7 and 11 as two halves of one "
-                           + "frame, and the 32-bit field as a g-sensor. Neither "
-                           + "matches what this device does: id 7 alone yields "
-                           + "complete images, and the 32-bit field cycles "
-                           + "through the same four values on a motionless "
-                           + "cable.")
+                text: qsTr("The kernel creates a button input device only if "
+                           + "the camera declares its button in the USB "
+                           + "descriptors (bTriggerSupport, bTriggerUsage).")
             }
 
-            SectionHeader { text: qsTr("Lighting") }
-
+            SectionHeader { visible: page.uvc; text: qsTr("Offered formats") }
             Label {
+                visible: page.uvc
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 wrapMode: Text.Wrap
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.secondaryColor
-                text: qsTr("The LED ring cannot be controlled from the phone. "
-                           + "Measured: 60 seconds of capture while the cable's "
-                           + "dimmer wheel was turned produced no change in any "
-                           + "header field and not one byte on the control "
-                           + "endpoint — while a button press in the same run "
-                           + "showed up immediately. The wheel is an analogue "
-                           + "potentiometer in the LED supply and the firmware "
-                           + "never sees it.\n\n"
-                           + "The brightness bar in the viewfinder therefore "
-                           + "brightens the picture, not the lamp.")
+                font.pixelSize: Theme.fontSizeExtraSmall
+                color: Theme.highlightColor
+                text: page.val("offered")
+            }
+
+            Column {
+                width: parent.width
+                visible: !page.uvc
+
+                SectionHeader { text: qsTr("Protocol") }
+
+                Label {
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - 2 * Theme.horizontalPageMargin
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.secondaryColor
+                    text: qsTr("Undocumented vendor protocol, reverse engineered. "
+                               + "Two commands are known:\n\n"
+                               + "    FF 55 FF 55 EE 10   initialise (control out)\n"
+                               + "    BB AA 05 00 00      connect (stream out)\n\n"
+                               + "Each 1024-byte packet is a 5-byte USB header, a "
+                               + "7-byte camera header and a slice of JPEG. Frames "
+                               + "are delimited by the frame-id byte changing — not "
+                               + "by searching for JPEG markers, which is the "
+                               + "mistake that produces half-grey pictures.")
+                }
+
+                SectionHeader { text: qsTr("What the header fields mean") }
+
+                DetailItem { label: qsTr("Camera id"); value: qsTr("always 7 here (11 never seen)") }
+                DetailItem { label: qsTr("cam_num");   value: qsTr("toggles 0/1 per frame") }
+                DetailItem { label: qsTr("flags bit 1"); value: qsTr("push-button on the cable") }
+                DetailItem { label: qsTr("32-bit field"); value: qsTr("cycles through 4 fixed values — unknown") }
+
+                Label {
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - 2 * Theme.horizontalPageMargin
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Theme.fontSizeExtraSmall
+                    color: Theme.secondaryColor
+                    text: qsTr("The reference implementation this was ported from "
+                               + "describes camera id 7 and 11 as two halves of one "
+                               + "frame, and the 32-bit field as a g-sensor. Neither "
+                               + "matches what this device does: id 7 alone yields "
+                               + "complete images, and the 32-bit field cycles "
+                               + "through the same four values on a motionless "
+                               + "cable.")
+                }
+
+                SectionHeader { text: qsTr("Lighting") }
+
+                Label {
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - 2 * Theme.horizontalPageMargin
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.secondaryColor
+                    text: qsTr("The LED ring cannot be controlled from the phone. "
+                               + "Measured: 60 seconds of capture while the cable's "
+                               + "dimmer wheel was turned produced no change in any "
+                               + "header field and not one byte on the control "
+                               + "endpoint — while a button press in the same run "
+                               + "showed up immediately. The wheel is an analogue "
+                               + "potentiometer in the LED supply and the firmware "
+                               + "never sees it.\n\n"
+                               + "The brightness bar in the viewfinder therefore "
+                               + "brightens the picture, not the lamp.")
+                }
             }
 
             Item { width: 1; height: Theme.paddingLarge }

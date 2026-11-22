@@ -3,6 +3,7 @@
  *   UppCameraWorker (QThread): libusb, handshake, reassembly, decode; no Qt Quick.
  *     Emits (QImage, original JPEG); snapshot/recording use the JPEG, no re-encode.
  *     YUYV variant: encoded to JPEG once in the worker.
+ *     No USeePlus device on the bus: UVC camera via uvcvideo (uvcdevice.h).
  *   UppCamera (GUI thread): QML properties, latest frame, fps.
  * Worker retries open forever until stopped; disconnects are expected.
  *
@@ -25,6 +26,7 @@
 
 struct libusb_context;
 struct libusb_device_handle;
+namespace uvc { struct Candidate; }
 
 class UppCameraWorker : public QThread
 {
@@ -63,6 +65,11 @@ private:
     void streamLoopMjpeg(libusb_device_handle *h);
     void streamLoopYuyv(libusb_context *ctx, libusb_device_handle *h);
     void teardown(libusb_device_handle *h);
+    /* uvcvideo fallback; returns on stop, unplug or error. */
+    void runUvc(const uvc::Candidate &c, QString *lastLogged);
+    /* YUYV -> image, JPEG (pre-gain), gain, emit. */
+    void emitYuyv(const unsigned char *src, int w, int h, int stride, int *emitted);
+    void setButton(bool pressed);
 
     /* In place. */
     void applyGain(QImage *image) const;

@@ -31,6 +31,7 @@ HEADERS += \
     src/camera/uppcamera.h \
     src/camera/uppprotocol.h \
     src/camera/uppvariant.h \
+    src/camera/uvcdevice.h \
     src/camera/yuyvassembler.h \
     src/camera/videoframeitem.h \
     src/diag/diaglog.h \
@@ -47,6 +48,7 @@ SOURCES += \
     src/camera/frameoverlay.cpp \
     src/camera/mjpegrecorder.cpp \
     src/camera/uppcamera.cpp \
+    src/camera/uvcdevice.cpp \
     src/camera/videoframeitem.cpp \
     src/diag/diaglog.cpp \
     src/diag/diagreport.cpp \
